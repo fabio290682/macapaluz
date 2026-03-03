@@ -1,0 +1,2 @@
+window.GOOGLE_MAPS_API_KEY = window.GOOGLE_MAPS_API_KEY || "";
+window.MACAPALUZ_API_BASE = window.MACAPALUZ_API_BASE || "";
