@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Macapá Luz – Sistema de Gestão de Iluminação Pública</title>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --teal:#1a6b3a;--teal-dark:#145530;--teal-light:#e6f4ec;--teal-mid:#2d8a52;
+  --accent:#c8102e;--accent-light:#fdeaed;
+  --bg:#f2f4f3;--sidebar:#0f3d22;--sidebar-hover:#1a6b3a;--card:#ffffff;
+  --text:#1a2e20;--muted:#6b7280;
+  --danger:#c8102e;--warning:#d97706;--success:#1a6b3a;--info:#0369a1;
+  --purple:#6366f1;--orange:#ea580c;
+  --border:#d8e8de;--shadow:0 2px 12px rgba(0,0,0,.08);
+  --sidebar-w:60px;--topbar-h:64px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar-w);background:var(--sidebar);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:2px;z-index:100;transition:width .3s;overflow:hidden;flex-shrink:0}
+.sidebar:hover{width:220px}
+.sidebar-logo{width:100%;padding:8px 16px 12px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:8px;white-space:nowrap;overflow:hidden}
+.logo-pre{font-size:9px;color:rgba(255,255,255,.45);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;display:block}
+.logo-name{font-size:18px;font-weight:900;color:#4ade80;display:block;line-height:1.2}
+.logo-name span{color:#fff}
+.nav-group-label{width:100%;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.25);padding:10px 20px 4px;white-space:nowrap;overflow:hidden}
+.nav-item{width:100%;display:flex;align-items:center;gap:12px;padding:11px 20px;cursor:pointer;color:#8b92a5;border-left:3px solid transparent;transition:all .2s;white-space:nowrap;overflow:hidden;user-select:none}
+.nav-item:hover,.nav-item.active{background:var(--sidebar-hover);color:#4ade80;border-left-color:#4ade80}
+.nav-icon{font-size:17px;flex-shrink:0;width:20px;text-align:center}
+.nav-label{font-size:13px;font-weight:600}
+.sidebar-footer{margin-top:auto;padding:12px 0;width:100%;border-top:1px solid rgba(255,255,255,.06)}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--card);padding:0 24px;height:var(--topbar-h);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);box-shadow:var(--shadow);z-index:50;flex-shrink:0}
+.topbar-left{display:flex;align-items:center;gap:14px}
+.topbar-breadcrumb{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.page-title{font-size:15px;font-weight:700}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.topbar-btn{width:34px;height:34px;border-radius:50%;border:none;cursor:pointer;background:var(--teal-light);color:var(--teal);font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .2s;position:relative}
+.topbar-btn:hover{background:var(--teal);color:#fff}
+.notif-badge{position:absolute;top:-2px;right:-2px;width:16px;height:16px;background:var(--accent);color:#fff;border-radius:50%;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+.user-badge{display:flex;align-items:center;gap:8px;background:var(--teal);color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer}
+.user-role{font-size:10px;opacity:.7;font-family:'JetBrains Mono',monospace}
+
+/* ── CONTENT ── */
+.content{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.content::-webkit-scrollbar{width:6px}
+.content::-webkit-scrollbar-thumb{background:var(--border);border-radius:999px}
+
+/* ── PAGES ── */
+.page{display:none;animation:pageIn .2s ease}
+.page.active{display:block}
+@keyframes pageIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── STAT CARDS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:var(--card);border-radius:12px;padding:20px;box-shadow:var(--shadow);position:relative;overflow:hidden;border-top:4px solid transparent;transition:transform .2s;cursor:default}
+.stat-card:hover{transform:translateY(-2px)}
+.stat-card.danger{border-top-color:var(--danger)}.stat-card.warning{border-top-color:var(--warning)}.stat-card.success{border-top-color:var(--success)}.stat-card.info{border-top-color:var(--info)}.stat-card.purple{border-top-color:var(--purple)}
+.stat-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px}
+.stat-value{font-size:26px;font-weight:900;margin-bottom:4px;font-family:'JetBrains Mono',monospace}
+.stat-value.danger{color:var(--danger)}.stat-value.warning{color:var(--warning)}.stat-value.success{color:var(--success)}.stat-value.info{color:var(--info)}.stat-value.teal{color:var(--teal)}.stat-value.purple{color:var(--purple)}
+.stat-sub{font-size:12px;color:var(--muted)}.stat-icon{position:absolute;right:16px;top:16px;font-size:28px;opacity:.12}
+
+/* ── CHARTS ── */
+.charts-row{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px}
+.chart-card{background:var(--card);border-radius:12px;padding:20px;box-shadow:var(--shadow)}
+.chart-title{font-size:14px;font-weight:700;margin-bottom:16px;color:var(--text)}
+.bars{display:flex;align-items:flex-end;gap:6px;height:120px}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.bar{width:100%;border-radius:4px 4px 0 0;transition:height .5s;cursor:pointer;min-height:4px}
+.bar:hover{filter:brightness(1.2)}
+.bar-label{font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.donut-wrap{display:flex;flex-direction:column;align-items:center;gap:14px}
+.donut-svg{width:100px;height:100px}
+.donut-legend{display:flex;flex-direction:column;gap:6px;width:100%}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:12px}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* ── TABLE ── */
+.table-card{background:var(--card);border-radius:12px;padding:20px;box-shadow:var(--shadow);margin-bottom:16px}
+.table-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:8px 12px;border-bottom:2px solid var(--border)}
+td{padding:10px 12px;font-size:13px;border-bottom:1px solid var(--border)}
+tr:last-child td{border:none}
+tr:hover td{background:#fafbff}
+.badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;display:inline-block;white-space:nowrap}
+.badge-success{background:#dcfce7;color:#14532d}.badge-danger{background:#fee2e2;color:#991b1b}.badge-warning{background:#fef3c7;color:#92400e}.badge-info{background:#e0f2fe;color:#0c4a6e}.badge-purple{background:#ede9fe;color:#4c1d95}.badge-gray{background:#f3f4f6;color:#374151}
+
+/* ── BUTTONS ── */
+.btn{padding:8px 18px;border:none;border-radius:8px;cursor:pointer;font-family:'Exo 2',sans-serif;font-weight:700;font-size:13px;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn-teal{background:var(--teal);color:#fff}.btn-teal:hover{background:var(--teal-dark)}
+.btn-outline{background:transparent;color:var(--teal);border:2px solid var(--teal)}.btn-outline:hover{background:var(--teal);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:#991b1b}
+.btn-warning{background:var(--warning);color:#fff}
+.btn-ghost{background:var(--teal-light);color:var(--teal)}.btn-ghost:hover{background:var(--teal);color:#fff}
+.btn-sm{padding:5px 12px;font-size:11px}
+.btn-xs{padding:3px 8px;font-size:10px}
+
+/* ── FORM ── */
+.form-card{background:var(--card);border-radius:12px;padding:24px;box-shadow:var(--shadow);margin-bottom:16px}
+.form-title{font-size:14px;font-weight:700;color:var(--teal);margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--teal-light)}
+.form-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.form-row-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.form-row-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.form-input,.form-select{padding:9px 12px;border:2px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;font-size:13px;color:var(--text);background:#fff;transition:border-color .2s;outline:none;width:100%}
+.form-input:focus,.form-select:focus{border-color:var(--teal)}
+.form-textarea{padding:9px 12px;border:2px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;font-size:13px;color:var(--text);background:#fff;transition:border-color .2s;outline:none;width:100%;resize:vertical;min-height:80px}
+.form-textarea:focus{border-color:var(--teal)}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.search-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.search-input{flex:1;min-width:200px;padding:9px 14px;border:2px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;font-size:13px;outline:none;transition:border-color .2s}
+.search-input:focus{border-color:var(--teal)}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:16px;box-shadow:var(--shadow)}
+.tab{flex:1;padding:9px 14px;border:none;background:transparent;color:var(--muted);font-family:'Exo 2',sans-serif;font-size:12px;font-weight:700;border-radius:7px;cursor:pointer;transition:all .2s;text-align:center;white-space:nowrap}
+.tab.active{background:var(--teal);color:#fff}
+.tab:hover:not(.active){background:var(--teal-light);color:var(--teal)}
+
+/* ── MINI KPI ── */
+.mini-kpi{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.kpi{background:var(--card);border-radius:10px;padding:14px 20px;box-shadow:var(--shadow);text-align:center;min-width:100px}
+.kpi-val{font-size:26px;font-weight:900;font-family:'JetBrains Mono',monospace;line-height:1}
+.kpi-label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:4px}
+
+/* ── MAP ── */
+#leafletMap,#leafletMapIP{width:100%;height:calc(100vh - 172px);border-radius:12px;box-shadow:var(--shadow);z-index:1}
+#leafletMapIP{height:480px}
+.map-overlay-panel{background:rgba(255,255,255,.97);border-radius:10px;padding:14px;box-shadow:0 2px 12px rgba(0,0,0,.15);max-width:180px}
+.map-legend-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px}
+.legend-row{display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:4px}
+.legend-circle{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.map-page-layout{display:grid;grid-template-columns:1fr 200px;gap:16px;margin-bottom:16px}
+.map-stats-col{display:flex;flex-direction:column;gap:10px}
+.map-stat-box{background:var(--card);border-radius:10px;padding:14px;box-shadow:var(--shadow);text-align:center}
+.map-stat-val{font-size:22px;font-weight:900;font-family:'JetBrains Mono',monospace}
+.map-stat-lbl{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase}
+.map-filters-bar{background:var(--card);border-radius:10px;padding:10px 14px;box-shadow:var(--shadow);display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;padding:28px;min-width:460px;max-width:640px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:modalIn .25s ease}
+.modal-lg{min-width:720px;max-width:820px}
+@keyframes modalIn{from{transform:scale(.95) translateY(10px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-title{font-size:17px;font-weight:700;color:var(--teal)}
+.modal-close{cursor:pointer;font-size:22px;color:var(--muted);line-height:1;padding:4px;border:none;background:none}
+.modal-close:hover{color:var(--danger)}
+.modal-section{margin-bottom:16px}
+.modal-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:10px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+
+/* ── STREETVIEW ── */
+.streetview-card{border-radius:10px;overflow:hidden;border:1px solid var(--border);margin-bottom:16px}
+.streetview-img{height:200px;position:relative;overflow:hidden}
+.street-scene{position:absolute;inset:0}
+.sky{position:absolute;top:0;left:0;right:0;height:55%;background:linear-gradient(180deg,#87ceeb 0%,#b0d4e8 100%)}
+.road{position:absolute;bottom:0;left:0;right:0;height:25%;background:#6b7280}
+.sidewalk{position:absolute;bottom:24%;left:0;right:0;height:5%;background:#9ca3af}
+.building{position:absolute;border-radius:2px 2px 0 0}
+.pole{position:absolute;bottom:12%;width:6px;background:#374151;border-radius:2px}
+.lamp-head{position:absolute;width:22px;height:10px;background:#f59e0b;border-radius:4px;box-shadow:0 0 8px rgba(245,158,11,.5)}
+.streetview-info{padding:14px;background:#fff}
+
+/* ── SECTION BANNER ── */
+.section-banner{background:linear-gradient(135deg,#0f3d22 0%,#1a6b3a 60%,#145530 100%);border-radius:14px;padding:22px 28px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 20px rgba(26,107,58,.3)}
+.section-banner h2{font-size:20px;font-weight:900;color:#fff;display:flex;align-items:center;gap:10px}
+.section-banner p{font-size:13px;color:rgba(255,255,255,.75);margin-top:4px}
+.section-banner-actions{display:flex;gap:10px}
+.btn-white{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)}.btn-white:hover{background:rgba(255,255,255,.25);color:#fff}
+
+/* ── ADMIN ── */
+.admin-header{background:linear-gradient(135deg,var(--teal) 0%,var(--teal-dark) 100%);color:#fff;padding:20px 24px;border-radius:12px;margin-bottom:22px}
+
+/* ── CONSUMPTION SIMULATOR ── */
+.sim-card{background:var(--card);border-radius:12px;padding:24px;box-shadow:var(--shadow);margin-bottom:20px}
+.sim-result{background:linear-gradient(135deg,#0f3d22,#1a6b3a);border-radius:12px;padding:24px;color:#fff;margin-bottom:20px}
+.sim-result-val{font-size:36px;font-weight:900;font-family:'JetBrains Mono',monospace;color:#4ade80}
+.sim-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}
+.sim-box{background:rgba(255,255,255,.1);border-radius:8px;padding:12px;text-align:center}
+.sim-box-val{font-size:20px;font-weight:900;font-family:'JetBrains Mono',monospace}
+.sim-box-lbl{font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.comparison-bar{height:28px;border-radius:6px;display:flex;align-items:center;padding:0 12px;font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;transition:width .8s ease}
+
+/* ── MATERIALS ── */
+.material-card{background:var(--card);border-radius:12px;padding:20px;box-shadow:var(--shadow);margin-bottom:16px}
+.guarantee-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700}
+.guarantee-active{background:#dcfce7;color:#14532d}
+.guarantee-expired{background:#fee2e2;color:#991b1b}
+.guarantee-expiring{background:#fef3c7;color:#92400e}
+
+/* ── MEASUREMENT ── */
+.med-header{background:linear-gradient(135deg,#1e3a5f,#0369a1);border-radius:12px;padding:20px 24px;color:#fff;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.med-val{font-size:32px;font-weight:900;font-family:'JetBrains Mono',monospace;color:#60a5fa}
+.med-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.med-box{background:var(--card);border-radius:10px;padding:14px;box-shadow:var(--shadow);text-align:center;border-top:3px solid var(--info)}
+.med-box-val{font-size:20px;font-weight:900;font-family:'JetBrains Mono',monospace;color:var(--info)}
+.med-box-lbl{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:3px}
+
+/* ── NOTIFICATION PANEL ── */
+.notif-panel{position:fixed;top:72px;right:20px;width:340px;background:#fff;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.18);z-index:150;display:none;max-height:500px;overflow:hidden}
+.notif-panel.show{display:block;animation:slideDown .2s ease}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.notif-header{padding:16px 18px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.notif-list{overflow-y:auto;max-height:380px}
+.notif-item{display:flex;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .2s}
+.notif-item:hover{background:var(--teal-light)}
+.notif-item.unread{background:#f0fdf4}
+.notif-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.notif-body{flex:1}
+.notif-title{font-size:13px;font-weight:700;margin-bottom:2px}
+.notif-desc{font-size:12px;color:var(--muted);line-height:1.4}
+.notif-time{font-size:10px;color:var(--muted);margin-top:3px;font-family:'JetBrains Mono',monospace}
+
+/* ── IP CADASTRO BANNER ── */
+.ip-banner{background:linear-gradient(135deg,#0f3d22 0%,#1a6b3a 60%,#c8102e 100%);border-radius:14px;padding:22px 28px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 20px rgba(0,184,169,.2)}
+.ip-kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px}
+.ip-kpi{background:var(--card);border-radius:10px;padding:14px;box-shadow:var(--shadow);text-align:center;border-left:4px solid}
+.ip-kpi-val{font-size:24px;font-weight:900;font-family:'JetBrains Mono',monospace;line-height:1}
+.ip-kpi-lbl{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:4px}
+
+/* ── PROGRESS ── */
+.progress{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-top:4px}
+.progress-bar{height:100%;border-radius:4px;transition:width .8s ease}
+
+/* ── ALERT ── */
+.alert{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-radius:10px;margin-bottom:16px;border-left:4px solid;font-size:13px}
+.alert-warn{background:#fef3c7;border-left-color:var(--warning);color:#92400e}
+.alert-info{background:var(--teal-light);border-left-color:var(--teal);color:var(--teal-dark)}
+.alert-danger{background:#fee2e2;border-left-color:var(--danger);color:#991b1b}
+.alert-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1280px){.stats-grid{grid-template-columns:repeat(2,1fr)}.charts-row{grid-template-columns:1fr}}
+@media(max-width:768px){.sidebar{width:var(--sidebar-w)!important}.nav-label,.logo-pre,.logo-name{display:none}.stats-grid{grid-template-columns:1fr 1fr}.content{padding:16px}.form-row{grid-template-columns:1fr}.ip-kpi-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════════════════════════ -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <span class="logo-pre">Prefeitura de</span>
+    <span class="logo-name">Macapá <span>Luz</span></span>
+  </div>
+
+  <span class="nav-group-label">PRINCIPAL</span>
+  <div class="nav-item active" onclick="showPage('dashboard',this)">
+    <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
+  </div>
+  <div class="nav-item" onclick="showPage('mapa',this)">
+    <span class="nav-icon">🗺️</span><span class="nav-label">Mapa de Pontos</span>
+  </div>
+
+  <span class="nav-group-label">OPERAÇÃO</span>
+  <div class="nav-item" onclick="showPage('ordens',this)">
+    <span class="nav-icon">🔧</span><span class="nav-label">Ordens de Serviço</span>
+  </div>
+  <div class="nav-item" onclick="showPage('medicao',this)">
+    <span class="nav-icon">📋</span><span class="nav-label">Medição Empreiteiro</span>
+  </div>
+  <div class="nav-item" onclick="showPage('materiais',this)">
+    <span class="nav-icon">📦</span><span class="nav-label">Materiais / Garantia</span>
+  </div>
+
+  <span class="nav-group-label">INVENTÁRIO</span>
+  <div class="nav-item" onclick="showPage('ipcadastro',this)">
+    <span class="nav-icon">🏷️</span><span class="nav-label">IPCadastro</span>
+  </div>
+  <div class="nav-item" onclick="showPage('consultas',this)">
+    <span class="nav-icon">🔍</span><span class="nav-label">Consultas Avançadas</span>
+  </div>
+
+  <span class="nav-group-label">GESTÃO</span>
+  <div class="nav-item" onclick="showPage('consumo',this)">
+    <span class="nav-icon">⚡</span><span class="nav-label">Consumo Energético</span>
+  </div>
+  <div class="nav-item" onclick="showPage('relatorios',this)">
+    <span class="nav-icon">📈</span><span class="nav-label">Relatórios</span>
+  </div>
+  <div class="nav-item" onclick="showPage('admin',this)">
+    <span class="nav-icon">⚙️</span><span class="nav-label">Administração</span>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="nav-item" onclick="alert('Você saiu do sistema')">
+      <span class="nav-icon">🚪</span><span class="nav-label">Sair</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════════════════════ -->
+<div class="main">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-breadcrumb">SGILP / Macapá-AP</span>
+      <span style="color:var(--border)">|</span>
+      <span class="page-title" id="pageTitle">Dashboard Geral</span>
+    </div>
+    <div class="topbar-right">
+      <button class="topbar-btn" onclick="toggleNotif()" title="Notificações">
+        🔔<span class="notif-badge" id="notifBadge">5</span>
+      </button>
+      <button class="topbar-btn" onclick="showPage('admin',document.querySelector('.nav-item:last-child'))" title="Configurações">⚙️</button>
+      <div class="user-badge">
+        👤 <div><div>Operador</div><div class="user-role">ADMIN</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATION PANEL -->
+  <div class="notif-panel" id="notifPanel">
+    <div class="notif-header">
+      <span style="font-weight:700;font-size:14px">🔔 Notificações</span>
+      <button onclick="toggleNotif()" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:18px">×</button>
+    </div>
+    <div class="notif-list">
+      <div class="notif-item unread">
+        <div class="notif-icon" style="background:#fee2e2">⚠️</div>
+        <div class="notif-body">
+          <div class="notif-title">Falha crítica detectada</div>
+          <div class="notif-desc">ILP-MAC-03421 — Av. Mendonça Furtado, 1200 sem sinal há 2h</div>
+          <div class="notif-time">há 15 min</div>
+        </div>
+      </div>
+      <div class="notif-item unread">
+        <div class="notif-icon" style="background:#fef3c7">🔧</div>
+        <div class="notif-body">
+          <div class="notif-title">OS #2347 atribuída</div>
+          <div class="notif-desc">Técnico João Silva — Rua São José, Perpétuo Socorro</div>
+          <div class="notif-time">há 42 min</div>
+        </div>
+      </div>
+      <div class="notif-item unread">
+        <div class="notif-icon" style="background:#dcfce7">✅</div>
+        <div class="notif-body">
+          <div class="notif-title">OS #2344 concluída</div>
+          <div class="notif-desc">Substituição de lâmpada — Av. FAB, 350 — Centro</div>
+          <div class="notif-time">há 1h 12min</div>
+        </div>
+      </div>
+      <div class="notif-item unread">
+        <div class="notif-icon" style="background:#e0f2fe">📦</div>
+        <div class="notif-body">
+          <div class="notif-title">Garantia expirando</div>
+          <div class="notif-desc">12 equipamentos com garantia vencendo em 30 dias</div>
+          <div class="notif-time">há 3h</div>
+        </div>
+      </div>
+      <div class="notif-item unread">
+        <div class="notif-icon" style="background:#ede9fe">📱</div>
+        <div class="notif-body">
+          <div class="notif-title">Solicitação via App Cidadão</div>
+          <div class="notif-desc">Nova OS aberta por cidadão — Bairro Buritizal — foto anexada</div>
+          <div class="notif-time">há 4h</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+  <!-- ══════════════════════════════
+       DASHBOARD
+  ══════════════════════════════ -->
+  <div class="page active" id="page-dashboard">
+    <div class="stats-grid">
+      <div class="stat-card danger"><div class="stat-icon">⚠️</div>
+        <div class="stat-label">Falhas Detectadas</div>
+        <div class="stat-value danger">1.240</div>
+        <div class="stat-sub">↑ 8% vs mês anterior</div>
+      </div>
+      <div class="stat-card warning"><div class="stat-icon">🔧</div>
+        <div class="stat-label">Em Manutenção</div>
+        <div class="stat-value warning">387</div>
+        <div class="stat-sub">28 OS abertas hoje</div>
+      </div>
+      <div class="stat-card success"><div class="stat-icon">✅</div>
+        <div class="stat-label">Pontos Operando</div>
+        <div class="stat-value success">58.140</div>
+        <div class="stat-sub">91,3% do parque</div>
+      </div>
+      <div class="stat-card info"><div class="stat-icon">💡</div>
+        <div class="stat-label">Total de Pontos ILP</div>
+        <div class="stat-value teal">63.712</div>
+        <div class="stat-sub">Macapá + Santana</div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">Ordens de Serviço — Últimos 12 Meses</div>
+        <div class="bars" id="barChart"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Status do Parque</div>
+        <div class="donut-wrap">
+          <svg class="donut-svg" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="35" fill="none" stroke="#dcfce7" stroke-width="20"/>
+            <circle cx="50" cy="50" r="35" fill="none" stroke="#10b981" stroke-width="20" stroke-dasharray="200 20" stroke-dashoffset="-5" transform="rotate(-90 50 50)"/>
+            <circle cx="50" cy="50" r="35" fill="none" stroke="#fee2e2" stroke-width="20" stroke-dasharray="28 192" stroke-dashoffset="-205" transform="rotate(-90 50 50)"/>
+            <circle cx="50" cy="50" r="35" fill="none" stroke="#fef3c7" stroke-width="20" stroke-dasharray="18 202" stroke-dashoffset="-233" transform="rotate(-90 50 50)"/>
+            <text x="50" y="54" text-anchor="middle" font-size="11" font-weight="900" fill="#1a2e20">63.712</text>
+          </svg>
+          <div class="donut-legend">
+            <div class="legend-item"><span class="legend-dot" style="background:#10b981"></span>Operando (91,3%)</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#ef4444"></span>Com Falha (1,9%)</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span>Manutenção (0,6%)</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#9ca3af"></span>Desligados (0,2%)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="chart-card">
+        <div class="chart-title">OS por Bairro — Mês Atual</div>
+        <div id="bairroChart" class="bars" style="height:100px"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Distribuição por Tipo de Lâmpada</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+          <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>💚 LED</span><span style="font-family:'JetBrains Mono',monospace;font-weight:700">38.420 (60,3%)</span></div><div class="progress"><div class="progress-bar" style="width:60%;background:var(--teal)"></div></div></div>
+          <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>🟡 Vapor de Sódio</span><span style="font-family:'JetBrains Mono',monospace;font-weight:700">18.214 (28,6%)</span></div><div class="progress"><div class="progress-bar" style="width:29%;background:#f59e0b"></div></div></div>
+          <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>🔴 Vapor Metálico</span><span style="font-family:'JetBrains Mono',monospace;font-weight:700">5.083 (8,0%)</span></div><div class="progress"><div class="progress-bar" style="width:8%;background:#ef4444"></div></div></div>
+          <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>🟣 Mista / Outros</span><span style="font-family:'JetBrains Mono',monospace;font-weight:700">1.995 (3,1%)</span></div><div class="progress"><div class="progress-bar" style="width:3%;background:#8b5cf6"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">
+        <div class="chart-title" style="margin-bottom:0">Últimas Ordens de Serviço</div>
+        <button class="btn btn-teal btn-sm" onclick="openModal('novaOS')">+ Nova OS</button>
+      </div>
+      <table><thead><tr><th>Nº OS</th><th>Endereço</th><th>Tipo</th><th>Técnico</th><th>Abertura</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody id="osTable"></tbody></table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       MAPA
+  ══════════════════════════════ -->
+  <div class="page" id="page-mapa">
+    <div class="map-filters-bar">
+      <span style="font-size:12px;font-weight:700;color:var(--muted)">FILTRAR:</span>
+      <button class="btn btn-sm btn-teal" onclick="filterMapStatus('all',this)">Todos</button>
+      <button class="btn btn-sm btn-ghost" onclick="filterMapStatus('ok',this)">✅ Operando</button>
+      <button class="btn btn-sm btn-ghost" onclick="filterMapStatus('fault',this)">❌ Falhas</button>
+      <button class="btn btn-sm btn-ghost" onclick="filterMapStatus('maint',this)">🔧 Manutenção</button>
+      <button class="btn btn-sm btn-ghost" onclick="filterMapStatus('off',this)">⚫ Desligados</button>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <span class="badge badge-success">✅ 58.140</span>
+        <span class="badge badge-danger">❌ 1.240</span>
+        <span class="badge badge-warning">🔧 387</span>
+        <span class="badge badge-gray">⚫ 127</span>
+      </div>
+    </div>
+    <div id="leafletMap"></div>
+  </div>
+
+  <!-- ══════════════════════════════
+       ORDENS DE SERVIÇO
+  ══════════════════════════════ -->
+  <div class="page" id="page-ordens">
+    <div class="mini-kpi">
+      <div class="kpi"><div class="kpi-val" style="color:var(--warning)">28</div><div class="kpi-label">Abertas</div></div>
+      <div class="kpi"><div class="kpi-val" style="color:var(--teal)">14</div><div class="kpi-label">Em Andamento</div></div>
+      <div class="kpi"><div class="kpi-val" style="color:var(--success)">213</div><div class="kpi-label">Concluídas (mês)</div></div>
+      <div class="kpi"><div class="kpi-val" style="color:var(--danger)">3</div><div class="kpi-label">Canceladas</div></div>
+      <div class="kpi"><div class="kpi-val" style="color:var(--purple)">8</div><div class="kpi-label">App Cidadão</div></div>
+    </div>
+    <div class="search-bar">
+      <input class="search-input" type="text" placeholder="🔍  Buscar OS por nº, endereço, técnico...">
+      <select class="form-select" style="width:150px"><option>Todos os Status</option><option>Aberta</option><option>Andamento</option><option>Concluída</option><option>Cancelada</option></select>
+      <select class="form-select" style="width:150px"><option>Todos os Tipos</option><option>Lâmpada Apagada</option><option>Ponto Piscando</option><option>Braço Danificado</option><option>Poste Danificado</option></select>
+      <button class="btn btn-teal" onclick="openModal('novaOS')">+ Abrir OS</button>
+    </div>
+    <div class="table-card">
+      <table><thead><tr><th>Nº OS</th><th>Tipo</th><th>Ponto ILP</th><th>Endereço</th><th>Técnico</th><th>Abertura</th><th>Previsão</th><th>Origem</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody id="ordensTable"></tbody></table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       MEDIÇÃO EMPREITEIRO
+  ══════════════════════════════ -->
+  <div class="page" id="page-medicao">
+    <div class="med-header">
+      <div>
+        <div style="font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Contrato Nº 2024/IL-001 — Empreiteiro: Construtora Luz Amazônia Ltda</div>
+        <div style="font-size:18px;font-weight:900">Medição de Serviços — Março/2026</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;opacity:.7;margin-bottom:4px">Valor total apurado</div>
+        <div class="med-val">R$ 284.720,00</div>
+        <button class="btn btn-white btn-sm" style="margin-top:8px">📄 Emitir Boletim</button>
+      </div>
+    </div>
+    <div class="med-grid">
+      <div class="med-box"><div class="med-box-val">213</div><div class="med-box-lbl">OS Concluídas</div></div>
+      <div class="med-box"><div class="med-box-val">847</div><div class="med-box-lbl">Lâmpadas Trocadas</div></div>
+      <div class="med-box"><div class="med-box-val">124</div><div class="med-box-lbl">Braços Substituídos</div></div>
+      <div class="med-box"><div class="med-box-val">38</div><div class="med-box-lbl">Postes Novos</div></div>
+    </div>
+    <div class="table-card">
+      <div class="table-header">
+        <span class="chart-title" style="margin-bottom:0">Boletim de Medição — Serviços Executados</span>
+        <div style="display:flex;gap:8px">
+          <select class="form-select" style="width:160px"><option>Março/2026</option><option>Fevereiro/2026</option><option>Janeiro/2026</option></select>
+          <button class="btn btn-outline btn-sm">⬇ Exportar</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Item</th><th>Descrição</th><th>Un.</th><th>Qtd Prevista</th><th>Qtd Realizada</th><th>Preço Unit.</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody id="medicaoTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       MATERIAIS / GARANTIA
+  ══════════════════════════════ -->
+  <div class="page" id="page-materiais">
+    <div class="section-banner">
+      <div><h2>📦 Materiais e Controle de Garantia</h2><p>Rastreabilidade de equipamentos · Bloqueio automático de troca durante garantia · Estoque</p></div>
+      <div class="section-banner-actions">
+        <button class="btn btn-white" onclick="openModal('novoMaterial')">+ Novo Material</button>
+        <button class="btn btn-teal">📊 Relatório de Estoque</button>
+      </div>
+    </div>
+
+    <div class="alert alert-warn">
+      <div class="alert-icon">⚠️</div>
+      <div><strong>12 equipamentos com garantia vencendo em 30 dias</strong> — Verifique a lista abaixo e acione o fornecedor se necessário.</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+      <div class="stat-card success" style="border-top-color:var(--teal)"><div class="stat-icon">📦</div><div class="stat-label">Em Estoque</div><div class="stat-value success">1.847</div><div class="stat-sub">Itens disponíveis</div></div>
+      <div class="stat-card info"><div class="stat-icon">🛡️</div><div class="stat-label">Em Garantia Ativa</div><div class="stat-value info">23.412</div><div class="stat-sub">Equipamentos protegidos</div></div>
+      <div class="stat-card warning"><div class="stat-icon">⏰</div><div class="stat-label">Garantia Vencendo</div><div class="stat-value warning">12</div><div class="stat-sub">Próximos 30 dias</div></div>
+      <div class="stat-card danger"><div class="stat-icon">❌</div><div class="stat-label">Garantia Expirada</div><div class="stat-value danger">438</div><div class="stat-sub">Requerem atenção</div></div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchMaterialTab(this,'mat-estoque')">📦 Estoque</div>
+      <div class="tab" onclick="switchMaterialTab(this,'mat-garantia')">🛡️ Controle de Garantia</div>
+      <div class="tab" onclick="switchMaterialTab(this,'mat-aplicados')">🔩 Aplicados em Campo</div>
+    </div>
+
+    <div id="mat-estoque">
+      <div class="table-card">
+        <div class="table-header"><span class="chart-title" style="margin-bottom:0">Estoque de Materiais</span>
+          <button class="btn btn-teal btn-sm" onclick="openModal('novoMaterial')">+ Entrada</button>
+        </div>
+        <table><thead><tr><th>Código</th><th>Material</th><th>Tipo</th><th>Potência</th><th>Qtd Estoque</th><th>Qtd Mínima</th><th>Situação</th><th>Ações</th></tr></thead>
+        <tbody id="estoqueTable"></tbody></table>
+      </div>
+    </div>
+
+    <div id="mat-garantia" style="display:none">
+      <div class="table-card">
+        <div class="table-header"><span class="chart-title" style="margin-bottom:0">Equipamentos — Status de Garantia</span>
+          <div style="display:flex;gap:8px">
+            <select class="form-select" style="width:160px"><option>Todos os Status</option><option>Em Garantia</option><option>Vencendo</option><option>Expirada</option></select>
+            <button class="btn btn-outline btn-sm">⬇ Exportar</button>
+          </div>
+        </div>
+        <table><thead><tr><th>Equipamento</th><th>Nº Série</th><th>Ponto ILP</th><th>Instalado em</th><th>Fim Garantia</th><th>Fornecedor</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="garantiaTable"></tbody></table>
+      </div>
+    </div>
+
+    <div id="mat-aplicados" style="display:none">
+      <div class="table-card">
+        <div class="table-header"><span class="chart-title" style="margin-bottom:0">Equipamentos Aplicados em Campo</span></div>
+        <table><thead><tr><th>OS Nº</th><th>Material</th><th>Ponto ILP</th><th>Endereço</th><th>Técnico</th><th>Data Aplicação</th><th>Garantia até</th></tr></thead>
+        <tbody id="aplicadosTable"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       IPCADASTRO
+  ══════════════════════════════ -->
+  <div class="page" id="page-ipcadastro">
+    <div class="ip-banner">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span style="font-size:26px">🏷️</span><span style="font-size:20px;font-weight:900;color:#fff">IP<span style="color:#4ade80">Cadastro</span></span></div>
+        <div style="color:rgba(255,255,255,.75);font-size:13px">Inventário completo de ativos de Iluminação Pública — Macapá e Santana/AP</div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-white" onclick="openModal('importarKMZ')">📂 Importar KMZ</button>
+        <button class="btn btn-teal" onclick="openModal('ipCadastroPonto')">+ Novo Ponto</button>
+      </div>
+    </div>
+
+    <div class="ip-kpi-grid">
+      <div class="ip-kpi" style="border-left-color:var(--teal)"><div class="ip-kpi-val" style="color:var(--teal)">63.712</div><div class="ip-kpi-lbl">Total de Pontos</div></div>
+      <div class="ip-kpi" style="border-left-color:#10b981"><div class="ip-kpi-val" style="color:#10b981">60.847</div><div class="ip-kpi-lbl">Cadastrados</div></div>
+      <div class="ip-kpi" style="border-left-color:var(--warning)"><div class="ip-kpi-val" style="color:var(--warning)">2.865</div><div class="ip-kpi-lbl">Aguard. Cadastro</div></div>
+      <div class="ip-kpi" style="border-left-color:var(--purple)"><div class="ip-kpi-val" style="color:var(--purple)">47</div><div class="ip-kpi-lbl">Bairros</div></div>
+      <div class="ip-kpi" style="border-left-color:#ec4899"><div class="ip-kpi-val" style="color:#ec4899">892</div><div class="ip-kpi-lbl">Ruas Mapeadas</div></div>
+    </div>
+
+    <div class="search-bar">
+      <input class="search-input" type="text" id="ipSearch" placeholder="🔍  Etiqueta, endereço, bairro...">
+      <select class="form-select" style="width:140px" id="ipCidade"><option value="">Todas as Cidades</option><option>Macapá</option><option>Santana</option></select>
+      <select class="form-select" style="width:160px" id="ipBairro"><option value="">Todos os Bairros</option><option>Centro</option><option>Buritizal</option><option>Jardim Equatorial</option><option>Perpétuo Socorro</option><option>Santa Rita</option><option>Novo Horizonte</option></select>
+      <select class="form-select" style="width:150px" id="ipLampada"><option value="">Tipo de Lâmpada</option><option>LED</option><option>Vapor de Sódio</option><option>Vapor Metálico</option><option>Mista</option></select>
+      <button class="btn btn-teal btn-sm" onclick="filterIPTable()">Filtrar</button>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchIPTab(this,'ip-lista')">📋 Lista de Pontos</div>
+      <div class="tab" onclick="switchIPTab(this,'ip-mapa')">🗺️ Mapa Georreferenciado</div>
+      <div class="tab" onclick="switchIPTab(this,'ip-pendentes')">⏳ Aguardando Cadastro</div>
+      <div class="tab" onclick="switchIPTab(this,'ip-config')">🏙️ Cidades / Bairros / Ruas</div>
+    </div>
+
+    <div id="ip-lista">
+      <div class="table-card">
+        <div class="table-header">
+          <span class="chart-title" style="margin-bottom:0">Inventário de Pontos Cadastrados</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm">⬇ CSV</button>
+            <button class="btn btn-outline btn-sm" onclick="openModal('ipRelatorio')">📄 PDF</button>
+          </div>
+        </div>
+        <table><thead><tr><th>Etiqueta</th><th>Endereço</th><th>Bairro</th><th>Poste</th><th>Altura</th><th>Luminária</th><th>Braço</th><th>Lâmpada</th><th>Potência</th><th>Coordenadas</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="ipTable"></tbody></table>
+      </div>
+    </div>
+    <div id="ip-mapa" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 280px;gap:16px">
+        <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)">
+          <div style="background:var(--teal);color:#fff;padding:10px 16px;font-weight:700;font-size:13px">🗺️ Mapa de Ativos — Georreferenciamento Real</div>
+          <div id="leafletMapIP"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="form-card" style="margin-bottom:0">
+            <div class="form-title">Pinos por Tipo</div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+              <div style="display:flex;justify-content:space-between"><span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#10b981;display:inline-block"></span>LED</span><span style="font-weight:700;font-family:'JetBrains Mono',monospace">38.420</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;display:inline-block"></span>Vapor Sódio</span><span style="font-weight:700;font-family:'JetBrains Mono',monospace">18.214</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block"></span>Vapor Metálico</span><span style="font-weight:700;font-family:'JetBrains Mono',monospace">5.083</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;display:inline-block"></span>Mista</span><span style="font-weight:700;font-family:'JetBrains Mono',monospace">1.995</span></div>
+            </div>
+          </div>
+          <div class="form-card" style="margin-bottom:0">
+            <div class="form-title">Localizar Ponto</div>
+            <input class="form-input" placeholder="Digite a etiqueta ILP-MAC-..." style="margin-bottom:8px">
+            <button class="btn btn-teal" style="width:100%">🔍 Localizar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="ip-pendentes" style="display:none">
+      <div class="table-card">
+        <div class="table-header"><span class="chart-title" style="margin-bottom:0">⏳ Pontos Aguardando Cadastro</span>
+          <button class="btn btn-teal btn-sm" onclick="openModal('ipCadastroPonto')">+ Cadastrar</button>
+        </div>
+        <table><thead><tr><th>#</th><th>Cidade</th><th>Bairro</th><th>Rua</th><th>Referência</th><th>Identificado em</th><th>Origem</th><th>Ação</th></tr></thead>
+        <tbody id="ipPendentesTable"></tbody></table>
+      </div>
+    </div>
+    <div id="ip-config" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+        <div class="form-card"><div class="form-title">🏙️ Cidades</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px"><input class="form-input" placeholder="Nome da cidade" style="flex:1"><button class="btn btn-teal btn-sm">+</button></div>
+          <table><thead><tr><th>Cidade</th><th>UF</th><th></th></tr></thead><tbody>
+            <tr><td>Macapá</td><td>AP</td><td><button class="btn btn-outline btn-xs">✏️</button></td></tr>
+            <tr><td>Santana</td><td>AP</td><td><button class="btn btn-outline btn-xs">✏️</button></td></tr>
+          </tbody></table>
+        </div>
+        <div class="form-card"><div class="form-title">🏘️ Bairros</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px"><input class="form-input" placeholder="Nome do bairro" style="flex:1"><button class="btn btn-teal btn-sm">+</button></div>
+          <table><thead><tr><th>Bairro</th><th>Cidade</th><th></th></tr></thead><tbody>
+            <tr><td>Centro</td><td>Macapá</td><td><button class="btn btn-outline btn-xs">✏️</button></td></tr>
+            <tr><td>Buritizal</td><td>Macapá</td><td><button class="btn btn-outline btn-xs">✏️</button></td></tr>
+            <tr><td>Jardim Equatorial</td><td>Macapá</td><td><button class="btn btn-outline btn-xs">✏️</button></td></tr>
+            <tr><td>Perpétuo Socorro</td><td>Macapá</td><td><button class="btn btn-outline btn-xs">✏️</button></td></tr>
+          </tbody></table>
+        </div>
+        <div class="form-card"><div class="form-title">🛣️ Ruas</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px"><input class="form-input" placeholder="Nome da rua" style="flex:1"><button class="btn btn-teal btn-sm">+</button></div>
+          <table><thead><tr><th>Rua</th><th>Bairro</th><th></th></tr></thead><tbody>
+            <tr><td>Av. Mendonça Furtado</td><td>Centro</td><td><button class="btn btn-outline btn-xs">✏️</button></td></tr>
+            <tr><td>Av. Azarias Neto</td><td>Buritizal</td><td><button class="btn btn-outline btn-xs">✏️</button></td></tr>
+            <tr><td>Av. FAB</td><td>Centro</td><td><button class="btn btn-outline btn-xs">✏️</button></td></tr>
+          </tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       CONSULTAS AVANÇADAS
+  ══════════════════════════════ -->
+  <div class="page" id="page-consultas">
+    <div class="section-banner">
+      <div><h2>🔍 Consultas Avançadas</h2><p>Pesquisa em múltiplos níveis — por poste, equipamento, rua, bairro ou combinação de características</p></div>
+    </div>
+    <div class="form-card">
+      <div class="form-title">Filtros de Consulta</div>
+      <div class="form-row" style="margin-bottom:14px">
+        <div class="form-group"><label>Módulo de Consulta</label>
+          <select class="form-select" id="consultaModulo" onchange="updateConsultaFields()">
+            <option value="pontos">Pontos de Iluminação</option><option value="os">Ordens de Serviço</option><option value="materiais">Materiais / Garantia</option><option value="intervencoes">Intervenções</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Cidade</label><select class="form-select"><option>Todas</option><option>Macapá</option><option>Santana</option></select></div>
+        <div class="form-group"><label>Bairro</label><select class="form-select"><option>Todos</option><option>Centro</option><option>Buritizal</option><option>Jardim Equatorial</option><option>Perpétuo Socorro</option></select></div>
+      </div>
+      <div class="form-row" id="consultaExtraFields" style="margin-bottom:14px">
+        <div class="form-group"><label>Rua / Logradouro</label><input class="form-input" placeholder="Ex: Av. Mendonça Furtado"></div>
+        <div class="form-group"><label>Tipo de Lâmpada</label><select class="form-select"><option>Todos</option><option>LED</option><option>Vapor de Sódio</option><option>Vapor Metálico</option></select></div>
+        <div class="form-group"><label>Status</label><select class="form-select"><option>Todos</option><option>Operando</option><option>Com Falha</option><option>Manutenção</option><option>Desligado</option></select></div>
+      </div>
+      <div class="form-row" style="margin-bottom:14px">
+        <div class="form-group"><label>Período De</label><input class="form-input" type="date" value="2026-02-01"></div>
+        <div class="form-group"><label>Período Até</label><input class="form-input" type="date" value="2026-03-03"></div>
+        <div class="form-group"><label>Potência</label><select class="form-select"><option>Todas</option><option>70W</option><option>100W</option><option>150W</option><option>250W</option></select></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="renderConsulta()">🔍 Consultar</button>
+        <button class="btn btn-teal" onclick="renderConsulta()">📊 Gerar Resultado</button>
+        <button class="btn btn-ghost">⬇ Exportar CSV</button>
+        <button class="btn btn-ghost">📄 Exportar PDF</button>
+      </div>
+    </div>
+    <div class="table-card" id="consultaResultCard">
+      <div class="table-header"><span class="chart-title" style="margin-bottom:0" id="consultaResultTitle">Resultado da Consulta</span>
+        <span class="badge badge-info" id="consultaCount">0 registros</span>
+      </div>
+      <table><thead><tr id="consultaHead"></tr></thead><tbody id="consultaBody"></tbody></table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       CONSUMO ENERGÉTICO
+  ══════════════════════════════ -->
+  <div class="page" id="page-consumo">
+    <div class="section-banner">
+      <div><h2>⚡ Simulação de Consumo Energético</h2><p>Cálculo por ponto, bairro e parque total — Comparativo LED vs Vapor de Sódio</p></div>
+    </div>
+
+    <div class="sim-card">
+      <div class="form-title">Parâmetros da Simulação</div>
+      <div class="form-row-4" style="margin-bottom:16px">
+        <div class="form-group"><label>Tarifa Energética (R$/kWh)</label><input class="form-input" id="simTarifa" value="0,89" oninput="calcConsumo()"></div>
+        <div class="form-group"><label>Horas de Funcionamento/Dia</label><input class="form-input" id="simHoras" type="number" value="11" oninput="calcConsumo()"></div>
+        <div class="form-group"><label>Cidade</label><select class="form-select" id="simCidade" onchange="calcConsumo()"><option>Todas</option><option>Macapá</option><option>Santana</option></select></div>
+        <div class="form-group"><label>Período</label><select class="form-select" onchange="calcConsumo()"><option>Mensal</option><option>Anual</option></select></div>
+      </div>
+    </div>
+
+    <div class="sim-result" id="simResult">
+      <div style="font-size:12px;opacity:.7;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Custo Total Estimado — Parque Completo / Mês</div>
+      <div class="sim-result-val" id="simTotal">R$ 1.847.320,00</div>
+      <div class="sim-grid">
+        <div class="sim-box"><div class="sim-box-val" id="simKwh">20.757.120 kWh</div><div class="sim-box-lbl">Consumo Total/Mês</div></div>
+        <div class="sim-box"><div class="sim-box-val" id="simPontos">63.712</div><div class="sim-box-lbl">Pontos Calculados</div></div>
+        <div class="sim-box"><div class="sim-box-val" id="simEcon">R$ 634.280</div><div class="sim-box-lbl">Economia c/ LED Total</div></div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div class="sim-card" style="margin-bottom:0">
+        <div class="form-title">Comparativo por Tipo de Lâmpada</div>
+        <div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>💚 LED (38.420 pontos)</span><span style="font-weight:700;font-family:'JetBrains Mono',monospace" id="compLED">R$ 810.840</span></div>
+          <div class="comparison-bar" style="width:44%;background:var(--teal)">R$ 810.840/mês</div>
+        </div>
+        <div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>🟡 Vapor Sódio (18.214 pontos)</span><span style="font-weight:700;font-family:'JetBrains Mono',monospace" id="compVS">R$ 802.840</span></div>
+          <div class="comparison-bar" style="width:43%;background:#f59e0b">R$ 802.840/mês</div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>🔴 Vapor Metálico (5.083 pontos)</span><span style="font-weight:700;font-family:'JetBrains Mono',monospace" id="compVM">R$ 233.640</span></div>
+          <div class="comparison-bar" style="width:13%;background:#ef4444">R$ 233.640/mês</div>
+        </div>
+      </div>
+      <div class="sim-card" style="margin-bottom:0">
+        <div class="form-title">Simulação de Substituição para LED</div>
+        <div style="background:var(--teal-light);border-radius:8px;padding:14px;margin-bottom:12px">
+          <div style="font-size:12px;color:var(--teal-dark);font-weight:700;margin-bottom:4px">Se substituir 100% dos VS e VM por LED:</div>
+          <div style="font-size:20px;font-weight:900;color:var(--teal);font-family:'JetBrains Mono',monospace">Economia: R$ 634.280/mês</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">R$ 7.611.360/ano · Redução de 34,3% na conta</div>
+        </div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6">
+          <div>⚡ Consumo LED médio: <strong>85W</strong> vs VS médio: <strong>175W</strong></div>
+          <div>⚡ Payback estimado com LED: <strong>28 meses</strong></div>
+          <div>⚡ CO₂ evitado/ano: <strong>≈ 3.240 toneladas</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sim-card">
+      <div class="form-title">Consumo por Bairro — Top 10</div>
+      <table>
+        <thead><tr><th>Bairro</th><th>Pontos</th><th>Consumo kWh/mês</th><th>Custo R$/mês</th><th>% LED</th><th>Economia Potencial</th></tr></thead>
+        <tbody id="consumoBairroTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       RELATÓRIOS
+  ══════════════════════════════ -->
+  <div class="page" id="page-relatorios">
+    <div class="section-banner">
+      <div><h2>📈 Relatórios Gerenciais</h2><p>Geração de relatórios PDF e Excel · Indicadores operacionais e energéticos</p></div>
+    </div>
+    <div class="form-card">
+      <div class="form-title">Configurar Relatório</div>
+      <div class="form-row" style="margin-bottom:14px">
+        <div class="form-group"><label>Tipo de Relatório</label>
+          <select class="form-select" id="relTipo">
+            <option>Ordens de Serviço por Período</option>
+            <option>Medição de Empreiteiro</option>
+            <option>Inventário de Pontos ILP</option>
+            <option>Consumo Energético</option>
+            <option>Controle de Materiais</option>
+            <option>Falhas por Bairro</option>
+            <option>Produtividade de Equipes</option>
+            <option>Garantias Vencendo</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Período De</label><input class="form-input" type="date" value="2026-02-01"></div>
+        <div class="form-group"><label>Período Até</label><input class="form-input" type="date" value="2026-03-03"></div>
+      </div>
+      <div class="form-row" style="margin-bottom:14px">
+        <div class="form-group"><label>Cidade</label><select class="form-select"><option>Todas</option><option>Macapá</option><option>Santana</option></select></div>
+        <div class="form-group"><label>Bairro</label><select class="form-select"><option>Todos</option><option>Centro</option><option>Buritizal</option></select></div>
+        <div class="form-group"><label>Formato de Saída</label><select class="form-select"><option>PDF</option><option>Excel (.xlsx)</option><option>CSV</option></select></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-teal" onclick="gerarRelatorio()">📊 Gerar Relatório</button>
+        <button class="btn btn-outline">📄 Exportar PDF</button>
+        <button class="btn btn-ghost">⬇ Exportar Excel</button>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:16px">
+      <div class="chart-title">Falhas Registradas — Últimos 6 Meses</div>
+      <div class="bars" id="reportChart"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+      <div class="chart-card" style="cursor:pointer" onclick="alert('Abrindo relatório de OS...')">
+        <div style="font-size:28px;margin-bottom:8px">📋</div>
+        <div style="font-weight:700;margin-bottom:4px">Relatório de OS</div>
+        <div style="font-size:12px;color:var(--muted)">213 OS · Março/2026</div>
+        <div style="margin-top:10px"><span class="badge badge-success">Disponível</span></div>
+      </div>
+      <div class="chart-card" style="cursor:pointer" onclick="alert('Abrindo medição de empreiteiro...')">
+        <div style="font-size:28px;margin-bottom:8px">💰</div>
+        <div style="font-weight:700;margin-bottom:4px">Medição Empreiteiro</div>
+        <div style="font-size:12px;color:var(--muted)">R$ 284.720 · Março/2026</div>
+        <div style="margin-top:10px"><span class="badge badge-success">Disponível</span></div>
+      </div>
+      <div class="chart-card" style="cursor:pointer" onclick="alert('Gerando inventário...')">
+        <div style="font-size:28px;margin-bottom:8px">💡</div>
+        <div style="font-weight:700;margin-bottom:4px">Inventário ILP</div>
+        <div style="font-size:12px;color:var(--muted)">63.712 pontos · Atualizado hoje</div>
+        <div style="margin-top:10px"><span class="badge badge-info">Sob demanda</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       ADMINISTRAÇÃO
+  ══════════════════════════════ -->
+  <div class="page" id="page-admin">
+    <div class="admin-header">
+      <h2 style="font-size:20px;font-weight:700">⚙️ Painel Administrativo</h2>
+      <p style="font-size:13px;opacity:.8;margin-top:4px">Usuários, configurações do sistema, importações e integrações</p>
+    </div>
+    <div class="tabs">
+      <div class="tab active" onclick="switchAdminTab(this,'adm-usuarios')">👥 Usuários</div>
+      <div class="tab" onclick="switchAdminTab(this,'adm-config')">⚙️ Configurações</div>
+      <div class="tab" onclick="switchAdminTab(this,'adm-import')">📂 Importação</div>
+      <div class="tab" onclick="switchAdminTab(this,'adm-app')">📱 App Cidadão</div>
+      <div class="tab" onclick="switchAdminTab(this,'adm-logs')">📜 Logs</div>
+    </div>
+
+    <div id="adm-usuarios">
+      <div class="form-card">
+        <div class="form-title">Cadastrar / Editar Usuário</div>
+        <div class="form-row"><div class="form-group"><label>Nome Completo</label><input class="form-input" placeholder="Nome completo"></div>
+          <div class="form-group"><label>E-mail</label><input class="form-input" type="email" placeholder="email@macapaluz.ap.gov.br"></div>
+          <div class="form-group"><label>Perfil de Acesso</label>
+            <select class="form-select"><option>Administrador</option><option>Gestor</option><option>Operador</option><option>Técnico de Campo</option><option>Fiscal</option><option>Órgão Fiscalizador (Leitura)</option></select>
+          </div>
+        </div>
+        <div class="form-actions"><button class="btn btn-outline">Cancelar</button><button class="btn btn-teal">Salvar Usuário</button></div>
+      </div>
+      <div class="table-card">
+        <table><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Último Acesso</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody>
+          <tr><td>Carlos Alberto</td><td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3b585a495754487b565a585a4b5a574e41155a4b155c544d155949">[email&#160;protected]</a></td><td><span class="badge badge-danger">Administrador</span></td><td>Hoje 09:42</td><td><span class="badge badge-success">Ativo</span></td><td><button class="btn btn-outline btn-sm">Editar</button></td></tr>
+          <tr><td>Ana Ferreira</td><td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="48292629662e2d3a3a2d213a290825292b293829243d32662938662f273e662a3a">[email&#160;protected]</a></td><td><span class="badge badge-info">Operador</span></td><td>Hoje 08:15</td><td><span class="badge badge-success">Ativo</span></td><td><button class="btn btn-outline btn-sm">Editar</button></td></tr>
+          <tr><td>João Silva</td><td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="deb4b1bfb1f0adb7b2a8bf9eb3bfbdbfaebfb2aba4f0bfaef0b9b1a8f0bcac">[email&#160;protected]</a></td><td><span class="badge badge-warning">Técnico</span></td><td>Ontem 18:30</td><td><span class="badge badge-success">Ativo</span></td><td><button class="btn btn-outline btn-sm">Editar</button></td></tr>
+          <tr><td>SEMA-AP (Fiscal)</td><td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="1e78776d7d7f7277647f7d7f715e6d7b737f307f6e30797168307c6c">[email&#160;protected]</a></td><td><span class="badge badge-gray">Leitura</span></td><td>01/03/2026</td><td><span class="badge badge-success">Ativo</span></td><td><button class="btn btn-outline btn-sm">Editar</button></td></tr>
+        </tbody></table>
+      </div>
+    </div>
+
+    <div id="adm-config" style="display:none">
+      <div class="form-card">
+        <div class="form-title">Parâmetros Gerais do Sistema</div>
+        <div class="form-row"><div class="form-group"><label>Município Principal</label><input class="form-input" value="Macapá - AP"></div>
+          <div class="form-group"><label>Responsável Técnico</label><input class="form-input" value="Eng. Carlos Mendes"></div>
+          <div class="form-group"><label>Contrato Nº</label><input class="form-input" value="2024/IL-001"></div>
+        </div>
+        <div class="form-row" style="margin-top:12px">
+          <div class="form-group"><label>Tarifa Padrão (R$/kWh)</label><input class="form-input" value="0,89"></div>
+          <div class="form-group"><label>Horas Funcionamento/Dia</label><input class="form-input" value="11"></div>
+          <div class="form-group"><label>Notificar Falhas</label><select class="form-select"><option>Imediatamente</option><option>A cada hora</option><option>Diariamente</option></select></div>
+        </div>
+        <div class="form-actions"><button class="btn btn-teal">💾 Salvar Configurações</button></div>
+      </div>
+    </div>
+
+    <div id="adm-import" style="display:none">
+      <div class="form-card">
+        <div class="form-title">Importação de Dados — KMZ / CSV / Excel</div>
+        <div class="alert alert-info"><div class="alert-icon">ℹ️</div><div>Formatos aceitos: <strong>KMZ, KML</strong> (parque de iluminação georreferenciado), <strong>CSV, XLSX</strong> (planilha de pontos). O sistema identifica automaticamente os campos e faz o mapeamento para o banco de dados.</div></div>
+        <div class="form-row-2">
+          <div class="form-group"><label>Arquivo</label><input class="form-input" type="file" accept=".csv,.kml,.kmz,.xlsx"></div>
+          <div class="form-group"><label>Tipo de Importação</label><select class="form-select"><option>Pontos de Iluminação (KMZ/CSV)</option><option>Ordens de Serviço</option><option>Materiais / Estoque</option><option>Usuários</option></select></div>
+        </div>
+        <div class="form-actions"><button class="btn btn-teal">📤 Importar Arquivo</button></div>
+      </div>
+    </div>
+
+    <div id="adm-app" style="display:none">
+      <div class="section-banner" style="margin-bottom:16px">
+        <div><h2>📱 App Cidadão — Solicitações</h2><p>Ordens de serviço abertas pelo aplicativo mobile pelos cidadãos de Macapá</p></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+        <div class="stat-card info"><div class="stat-icon">📱</div><div class="stat-label">Solicitações Via App</div><div class="stat-value teal">284</div><div class="stat-sub">Mês atual</div></div>
+        <div class="stat-card success"><div class="stat-icon">✅</div><div class="stat-label">Atendidas</div><div class="stat-value success">241</div><div class="stat-sub">84,9% de resolução</div></div>
+        <div class="stat-card warning"><div class="stat-icon">⏳</div><div class="stat-label">Aguardando</div><div class="stat-value warning">43</div><div class="stat-sub">Pendentes de atendimento</div></div>
+      </div>
+      <div class="table-card">
+        <div class="table-header"><span class="chart-title" style="margin-bottom:0">OS via App Cidadão — Recentes</span></div>
+        <table><thead><tr><th>OS Nº</th><th>Data/Hora</th><th>Localização Detectada</th><th>Ponto ILP</th><th>Foto</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="appCidadaoTable"></tbody></table>
+      </div>
+    </div>
+
+    <div id="adm-logs" style="display:none">
+      <div class="table-card">
+        <div class="table-header"><span class="chart-title" style="margin-bottom:0">📜 Log de Auditoria do Sistema</span>
+          <button class="btn btn-outline btn-sm">⬇ Exportar</button>
+        </div>
+        <table><thead><tr><th>Data/Hora</th><th>Usuário</th><th>Perfil</th><th>Ação</th><th>Módulo</th><th>Detalhe</th></tr></thead>
+        <tbody id="logsTable"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ══════════════════════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════════════════════ -->
+
+<!-- Modal Nova OS -->
+<div class="modal-overlay" id="modal-novaOS">
+  <div class="modal modal-lg">
+    <div class="modal-header"><span class="modal-title">🔧 Abrir Ordem de Serviço</span><button class="modal-close" onclick="closeModal('novaOS')">×</button></div>
+    <div class="modal-section"><div class="modal-section-title">Identificação</div>
+      <div class="modal-row">
+        <div class="form-group"><label>Tipo de Serviço</label><select class="form-select"><option>Lâmpada Apagada</option><option>Ponto Piscando</option><option>Braço Danificado</option><option>Poste Danificado</option><option>Falta de Energia</option><option>Instalação Nova</option></select></div>
+        <div class="form-group"><label>Prioridade</label><select class="form-select"><option>Normal</option><option>Alta</option><option>Urgente</option></select></div>
+      </div>
+    </div>
+    <div class="modal-section"><div class="modal-section-title">Localização</div>
+      <div class="modal-row">
+        <div class="form-group"><label>Ponto ILP</label><input class="form-input" placeholder="ILP-MAC-00142 (ou buscar)"></div>
+        <div class="form-group"><label>Endereço Confirmado</label><input class="form-input" placeholder="Av. Mendonça Furtado, 1200"></div>
+      </div>
+      <div class="modal-row" style="margin-top:10px">
+        <div class="form-group"><label>Bairro</label><select class="form-select"><option>Centro</option><option>Buritizal</option><option>Jardim Equatorial</option><option>Perpétuo Socorro</option></select></div>
+        <div class="form-group"><label>Técnico Responsável</label><select class="form-select"><option>João Silva</option><option>Maria Santos</option><option>Carlos Mendes</option><option>Ana Lima</option></select></div>
+      </div>
+    </div>
+    <div class="modal-section"><div class="modal-section-title">Detalhes</div>
+      <div class="form-group"><label>Descrição do Problema</label><textarea class="form-textarea" placeholder="Descreva o problema detalhadamente..."></textarea></div>
+      <div class="modal-row" style="margin-top:10px">
+        <div class="form-group"><label>Previsão de Atendimento</label><input class="form-input" type="date"></div>
+        <div class="form-group"><label>Origem da Solicitação</label><select class="form-select"><option>Operador (Sistema)</option><option>App Cidadão</option><option>Fiscalização</option><option>Automático</option></select></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('novaOS')">Cancelar</button><button class="btn btn-teal" onclick="closeModal('novaOS')">✔ Abrir OS</button></div>
+  </div>
+</div>
+
+<!-- Modal Cadastro de Ponto ILP -->
+<div class="modal-overlay" id="modal-ipCadastroPonto">
+  <div class="modal modal-lg">
+    <div class="modal-header"><span class="modal-title">🏷️ Cadastro de Ponto ILP</span><button class="modal-close" onclick="closeModal('ipCadastroPonto')">×</button></div>
+    <div class="modal-section"><div class="modal-section-title">Identificação</div>
+      <div class="modal-row"><div class="form-group"><label>Etiqueta</label><input class="form-input" placeholder="ILP-MAC-00001"></div><div class="form-group"><label>Status</label><select class="form-select"><option>Cadastrado</option><option>Aguardando Cadastro</option></select></div></div>
+    </div>
+    <div class="modal-section"><div class="modal-section-title">Localização</div>
+      <div class="modal-row"><div class="form-group"><label>Cidade</label><select class="form-select"><option>Macapá</option><option>Santana</option></select></div><div class="form-group"><label>Bairro</label><select class="form-select"><option>Centro</option><option>Buritizal</option><option>Jardim Equatorial</option><option>Perpétuo Socorro</option></select></div></div>
+      <div class="modal-row" style="margin-top:10px"><div class="form-group"><label>Rua / Logradouro</label><input class="form-input" placeholder="Av. Mendonça Furtado"></div><div class="form-group"><label>Número / Referência</label><input class="form-input" placeholder="nº 1200"></div></div>
+      <div class="modal-row" style="margin-top:10px"><div class="form-group"><label>Latitude</label><input class="form-input" placeholder="0.0349"></div><div class="form-group"><label>Longitude</label><input class="form-input" placeholder="-51.0694"></div></div>
+    </div>
+    <div class="modal-section"><div class="modal-section-title">Composição do Ponto</div>
+      <div class="modal-row"><div class="form-group"><label>Tipo de Poste</label><select class="form-select"><option>Concreto</option><option>Metálico</option><option>Fibra de Vidro</option><option>Madeira</option></select></div><div class="form-group"><label>Altura (m)</label><select class="form-select"><option>7m</option><option>9m</option><option>11m</option><option>12m</option><option>14m</option></select></div></div>
+      <div class="modal-row" style="margin-top:10px"><div class="form-group"><label>Luminária</label><select class="form-select"><option>Fechada</option><option>Aberta</option><option>Decorativa</option><option>Projetor</option></select></div><div class="form-group"><label>Braço</label><select class="form-select"><option>Simples</option><option>Duplo</option><option>Ornamental</option><option>Sem Braço</option></select></div></div>
+      <div class="modal-row" style="margin-top:10px"><div class="form-group"><label>Tipo de Lâmpada</label><select class="form-select"><option>LED</option><option>Vapor de Sódio</option><option>Vapor Metálico</option><option>Mista</option></select></div><div class="form-group"><label>Potência (W)</label><select class="form-select"><option>40W</option><option>70W</option><option>100W</option><option>150W</option><option>250W</option><option>400W</option></select></div></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('ipCadastroPonto')">Cancelar</button><button class="btn btn-teal" onclick="closeModal('ipCadastroPonto')">✔ Salvar Ponto</button></div>
+  </div>
+</div>
+
+<!-- Modal Importar KMZ -->
+<div class="modal-overlay" id="modal-importarKMZ">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">📂 Importar Arquivo KMZ</span><button class="modal-close" onclick="closeModal('importarKMZ')">×</button></div>
+    <div class="alert alert-info" style="margin-bottom:16px"><div class="alert-icon">ℹ️</div><div>O arquivo KMZ do parque de iluminação de Macapá será processado e todos os pontos serão georreferenciados automaticamente no mapa.</div></div>
+    <div class="form-group" style="margin-bottom:14px"><label>Selecionar Arquivo KMZ</label><input class="form-input" type="file" accept=".kmz,.kml"></div>
+    <div class="modal-row"><div class="form-group"><label>Cidade</label><select class="form-select"><option>Macapá</option><option>Santana</option></select></div><div class="form-group"><label>Ação</label><select class="form-select"><option>Atualizar pontos existentes</option><option>Apenas novos pontos</option><option>Substituir tudo</option></select></div></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('importarKMZ')">Cancelar</button><button class="btn btn-teal" onclick="closeModal('importarKMZ')">📤 Processar KMZ</button></div>
+  </div>
+</div>
+
+<!-- Modal Novo Material -->
+<div class="modal-overlay" id="modal-novoMaterial">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">📦 Entrada de Material</span><button class="modal-close" onclick="closeModal('novoMaterial')">×</button></div>
+    <div class="modal-row"><div class="form-group"><label>Código do Material</label><input class="form-input" placeholder="MAT-LED-100W"></div><div class="form-group"><label>Descrição</label><input class="form-input" placeholder="Luminária LED 100W"></div></div>
+    <div class="modal-row" style="margin-top:10px"><div class="form-group"><label>Tipo</label><select class="form-select"><option>Lâmpada LED</option><option>Luminária</option><option>Braço</option><option>Poste</option><option>Relé</option></select></div><div class="form-group"><label>Potência</label><select class="form-select"><option>70W</option><option>100W</option><option>150W</option><option>250W</option></select></div></div>
+    <div class="modal-row" style="margin-top:10px"><div class="form-group"><label>Quantidade Entrada</label><input class="form-input" type="number" placeholder="100"></div><div class="form-group"><label>Garantia (meses)</label><input class="form-input" type="number" placeholder="24"></div></div>
+    <div class="modal-row" style="margin-top:10px"><div class="form-group"><label>Fornecedor</label><input class="form-input" placeholder="Fornecedor Ltda"></div><div class="form-group"><label>Nº NF</label><input class="form-input" placeholder="NF-12345"></div></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('novoMaterial')">Cancelar</button><button class="btn btn-teal" onclick="closeModal('novoMaterial')">✔ Registrar Entrada</button></div>
+  </div>
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+// ══════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════
+const bairros = ['Centro','Buritizal','Jardim Equatorial','Perpétuo Socorro','Santa Rita','Novo Horizonte','Pacoval','Congós','Brasil Novo','Infraero'];
+
+const osData = [
+  {id:'OS-2347',end:'Av. Mendonça Furtado, 1200',ponto:'ILP-MAC-03421',tipo:'Lâmpada Apagada',tec:'João Silva',data:'03/03/2026',prev:'05/03/2026',origem:'Sistema',status:'aberta'},
+  {id:'OS-2346',end:'Av. Azarias Neto, 500',ponto:'ILP-MAC-02156',tipo:'Ponto Piscando',tec:'Maria Santos',data:'02/03/2026',prev:'04/03/2026',origem:'App Cidadão',status:'andamento'},
+  {id:'OS-2345',end:'Av. FAB, 350',ponto:'ILP-MAC-00892',tipo:'Braço Danificado',tec:'Carlos Mendes',data:'01/03/2026',prev:'03/03/2026',origem:'Fiscalização',status:'concluida'},
+  {id:'OS-2344',end:'R. São José, 22',ponto:'ILP-MAC-01234',tipo:'Lâmpada Apagada',tec:'Ana Lima',data:'28/02/2026',prev:'02/03/2026',origem:'Sistema',status:'concluida'},
+  {id:'OS-2343',end:'Av. Coaracy Nunes, 780',ponto:'ILP-MAC-05678',tipo:'Falta de Energia',tec:'Pedro Gama',data:'27/02/2026',prev:'01/03/2026',origem:'App Cidadão',status:'aberta'},
+  {id:'OS-2342',end:'R. Leopoldo Machado, 88',ponto:'ILP-MAC-00144',tipo:'Poste Danificado',tec:'João Silva',data:'26/02/2026',prev:'28/02/2026',origem:'Sistema',status:'andamento'},
+];
+
+const pontosILP = [
+  {et:'ILP-MAC-00142',end:'Av. Mendonça Furtado, 1200',bairro:'Centro',poste:'Concreto',alt:'9m',lum:'Fechada',braco:'Simples',lamp:'LED',pot:'100W',lat:'0.0349',lng:'-51.0694',status:'cadastrado'},
+  {et:'ILP-MAC-00143',end:'Av. Azarias Neto, 500',bairro:'Buritizal',poste:'Metálico',alt:'11m',lum:'Aberta',braco:'Duplo',lamp:'Vapor de Sódio',pot:'150W',lat:'0.0285',lng:'-51.0720',status:'cadastrado'},
+  {et:'ILP-MAC-00144',end:'R. Leopoldo Machado, 88',bairro:'Centro',poste:'Concreto',alt:'7m',lum:'Decorativa',braco:'Ornamental',lamp:'LED',pot:'70W',lat:'0.0310',lng:'-51.0650',status:'cadastrado'},
+  {et:'ILP-MAC-00145',end:'Av. FAB, 350',bairro:'Centro',poste:'Metálico',alt:'12m',lum:'Projetor',braco:'Simples',lamp:'Vapor Metálico',pot:'250W',lat:'0.0370',lng:'-51.0580',status:'cadastrado'},
+  {et:'ILP-MAC-00146',end:'R. São José, 22',bairro:'Perpétuo Socorro',poste:'Concreto',alt:'9m',lum:'Fechada',braco:'Simples',lamp:'LED',pot:'100W',lat:'0.0290',lng:'-51.0600',status:'cadastrado'},
+  {et:'ILP-MAC-00147',end:'Av. Coaracy Nunes, 780',bairro:'Jardim Equatorial',poste:'Fibra de Vidro',alt:'7m',lum:'Fechada',braco:'Simples',lamp:'LED',pot:'70W',lat:'0.0210',lng:'-51.0800',status:'cadastrado'},
+];
+
+const ipPendentes = [
+  {id:1,cidade:'Macapá',bairro:'Santa Rita',rua:'R. Coelho da Rocha',ref:'Próx. à escola',data:'15/02/2026',origem:'App Cidadão'},
+  {id:2,cidade:'Macapá',bairro:'Novo Horizonte',rua:'Trav. Miracema',ref:'Poste s/ placa',data:'18/02/2026',origem:'Fiscalização'},
+  {id:3,cidade:'Santana',bairro:'Centro',rua:'Av. Santana',ref:'Cruzamento semáforo',data:'20/02/2026',origem:'Sistema'},
+];
+
+const medicaoData = [
+  {item:'01',desc:'Substituição de lâmpada LED 100W',un:'un',prev:500,real:524,unit:'R$ 180,00',total:'R$ 94.320,00',status:'aprovado'},
+  {item:'02',desc:'Substituição de lâmpada VS 150W',un:'un',prev:200,real:187,unit:'R$ 210,00',total:'R$ 39.270,00',status:'aprovado'},
+  {item:'03',desc:'Substituição de braço simples',un:'un',prev:80,real:72,unit:'R$ 320,00',total:'R$ 23.040,00',status:'aprovado'},
+  {item:'04',desc:'Reparo de circuito / relé',un:'serv',prev:50,real:48,unit:'R$ 150,00',total:'R$ 7.200,00',status:'aprovado'},
+  {item:'05',desc:'Instalação de poste novo (concreto 9m)',un:'un',prev:20,real:18,unit:'R$ 1.800,00',total:'R$ 32.400,00',status:'em análise'},
+  {item:'06',desc:'Limpeza e ajuste de luminária',un:'un',prev:300,real:322,unit:'R$ 85,00',total:'R$ 27.370,00',status:'aprovado'},
+  {item:'07',desc:'Substituição de módulo de comunicação',un:'un',prev:40,real:38,unit:'R$ 580,00',total:'R$ 22.040,00',status:'em análise'},
+];
+
+const estoqueData = [
+  {cod:'MAT-LED-100W',desc:'Luminária LED 100W IP65',tipo:'Lâmpada LED',pot:'100W',qtd:842,min:200,sit:'ok'},
+  {cod:'MAT-LED-70W',desc:'Luminária LED 70W IP65',tipo:'Lâmpada LED',pot:'70W',qtd:124,min:150,sit:'baixo'},
+  {cod:'MAT-VS-150W',desc:'Lâmpada Vapor Sódio 150W',tipo:'Vapor de Sódio',pot:'150W',qtd:380,min:100,sit:'ok'},
+  {cod:'MAT-BRACO-S',desc:'Braço Simples Galvanizado 1,5m',tipo:'Braço',pot:'-',qtd:218,min:100,sit:'ok'},
+  {cod:'MAT-RELE',desc:'Relé Fotoelétrico 1000W',tipo:'Componente',pot:'-',qtd:45,min:80,sit:'baixo'},
+];
+
+const garantiaData = [
+  {equip:'Luminária LED 100W',serie:'LED-100-00142',ponto:'ILP-MAC-00142',inst:'15/03/2024',fim:'15/03/2026',forn:'PhilipsPT',status:'expirando'},
+  {equip:'Luminária LED 70W',serie:'LED-70-00890',ponto:'ILP-MAC-00890',inst:'10/06/2024',fim:'10/06/2026',forn:'Osram Brasil',status:'ativa'},
+  {equip:'Luminária LED 100W',serie:'LED-100-01200',ponto:'ILP-MAC-01200',inst:'20/01/2025',fim:'20/01/2027',forn:'PhilipsPT',status:'ativa'},
+  {equip:'Braço Simples',serie:'BR-S-00344',ponto:'ILP-MAC-00344',inst:'01/08/2023',fim:'01/08/2025',forn:'MetalúrgicaAP',status:'expirada'},
+  {equip:'Módulo Comunicação',serie:'MOD-COM-0512',ponto:'ILP-MAC-00512',inst:'15/11/2024',fim:'15/11/2026',forn:'TechNet',status:'ativa'},
+];
+
+const aplicadosData = [
+  {os:'OS-2344',mat:'Luminária LED 100W',ponto:'ILP-MAC-01234',end:'R. São José, 22',tec:'Ana Lima',data:'28/02/2026',garAtе:'28/02/2028'},
+  {os:'OS-2340',mat:'Braço Simples',ponto:'ILP-MAC-03421',end:'Av. Mendonça Furtado',tec:'João Silva',data:'02/03/2026',garAtе:'02/03/2028'},
+];
+
+const logsData = [
+  {dt:'03/03/2026 09:42',user:'Carlos Alberto',perfil:'Admin',acao:'Criou OS',modulo:'Ordens de Serviço',det:'OS-2347 — ILP-MAC-03421'},
+  {dt:'03/03/2026 08:15',user:'Ana Ferreira',perfil:'Operador',acao:'Editou ponto',modulo:'IPCadastro',det:'ILP-MAC-00142 — atualização'},
+  {dt:'02/03/2026 18:30',user:'João Silva',perfil:'Técnico',acao:'Encerrou OS',modulo:'Ordens de Serviço',det:'OS-2345 — concluída'},
+  {dt:'02/03/2026 14:20',user:'App Cidadão',perfil:'Público',acao:'Abriu solicitação',modulo:'App Mobile',det:'Bairro Buritizal — foto anexada'},
+  {dt:'01/03/2026 11:00',user:'Carlos Alberto',perfil:'Admin',acao:'Importou KMZ',modulo:'IPCadastro',det:'248 pontos importados'},
+];
+
+const appCidadaoData = [
+  {os:'OS-2346',dt:'02/03/2026 14:20',loc:'0.0285, -51.0720',ponto:'ILP-MAC-02156',foto:'📸',status:'andamento'},
+  {os:'OS-2343',dt:'01/03/2026 09:45',loc:'0.0210, -51.0800',ponto:'ILP-MAC-05678',foto:'📸',status:'aberta'},
+  {os:'OS-2341',dt:'28/02/2026 20:10',loc:'0.0310, -51.0650',ponto:'ILP-MAC-00890',foto:'📸',status:'concluida'},
+];
+
+const consumoBairros = [
+  {b:'Centro',pts:8420,kwh:2808960,custo:R(2808960*0.89),led:72,eco:R(2808960*0.89*0.28)},
+  {b:'Buritizal',pts:6230,kwh:2076810,custo:R(2076810*0.89),led:58,eco:R(2076810*0.89*0.42)},
+  {b:'Jardim Equatorial',pts:5840,kwh:1945680,custo:R(1945680*0.89),led:85,eco:R(1945680*0.89*0.15)},
+  {b:'Perpétuo Socorro',pts:4920,kwh:1640160,custo:R(1640160*0.89),led:61,eco:R(1640160*0.89*0.39)},
+  {b:'Santa Rita',pts:4210,kwh:1403940,custo:R(1403940*0.89),led:45,eco:R(1403940*0.89*0.55)},
+  {b:'Congós',pts:3870,kwh:1290330,custo:R(1290330*0.89),led:78,eco:R(1290330*0.89*0.22)},
+  {b:'Pacoval',pts:3540,kwh:1180260,custo:R(1180260*0.89),led:52,eco:R(1180260*0.89*0.48)},
+  {b:'Brasil Novo',pts:2980,kwh:993540,custo:R(993540*0.89),led:90,eco:R(993540*0.89*0.10)},
+  {b:'Novo Horizonte',pts:2840,kwh:946560,custo:R(946560*0.89),led:40,eco:R(946560*0.89*0.60)},
+  {b:'Infraero',pts:2210,kwh:737340,custo:R(737340*0.89),led:95,eco:R(737340*0.89*0.05)},
+];
+
+function R(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
+
+const statusBadge = {
+  aberta:'<span class="badge badge-warning">Aberta</span>',
+  andamento:'<span class="badge badge-info">Em Andamento</span>',
+  concluida:'<span class="badge badge-success">Concluída</span>',
+  cancelada:'<span class="badge badge-danger">Cancelada</span>',
+  aprovado:'<span class="badge badge-success">Aprovado</span>',
+  'em análise':'<span class="badge badge-warning">Em Análise</span>',
+};
+
+// ══════════════════════════════════════════════════════
+// RENDER FUNCTIONS
+// ══════════════════════════════════════════════════════
+function renderOSTable(){
+  document.getElementById('osTable').innerHTML = osData.slice(0,5).map(r=>`<tr>
+    <td><strong style="color:var(--teal)">${r.id}</strong></td>
+    <td style="font-size:12px">${r.end}</td><td>${r.tipo}</td><td>${r.tec}</td><td>${r.data}</td>
+    <td>${statusBadge[r.status]||r.status}</td>
+    <td><button class="btn btn-outline btn-sm" onclick="openModal('novaOS')">Ver OS</button></td>
+  </tr>`).join('');
+}
+
+function renderOrdensTable(){
+  document.getElementById('ordensTable').innerHTML = osData.map(r=>`<tr>
+    <td><strong style="color:var(--teal)">${r.id}</strong></td><td>${r.tipo}</td>
+    <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.ponto}</td>
+    <td style="font-size:12px">${r.end}</td><td>${r.tec}</td><td>${r.data}</td><td>${r.prev}</td>
+    <td><span class="badge ${r.origem==='App Cidadão'?'badge-purple':'badge-gray'}">${r.origem}</span></td>
+    <td>${statusBadge[r.status]||r.status}</td>
+    <td style="display:flex;gap:4px">
+      <button class="btn btn-outline btn-sm" onclick="openModal('novaOS')">✏️</button>
+      ${r.status==='concluida'?'<button class="btn btn-ghost btn-sm">📋</button>':''}
+    </td>
+  </tr>`).join('');
+}
+
+function renderIPTable(){
+  document.getElementById('ipTable').innerHTML = pontosILP.map(r=>`<tr>
+    <td><strong style="color:var(--teal)">${r.et}</strong></td>
+    <td style="font-size:12px">${r.end}</td><td>${r.bairro}</td><td>${r.poste}</td><td>${r.alt}</td>
+    <td>${r.lum}</td><td>${r.braco}</td>
+    <td><span style="color:${r.lamp==='LED'?'var(--teal)':r.lamp.includes('Sódio')?'#f59e0b':'#ef4444'};font-weight:700">${r.lamp}</span></td>
+    <td><strong>${r.pot}</strong></td>
+    <td style="font-family:'JetBrains Mono',monospace;font-size:10px">${r.lat}, ${r.lng}</td>
+    <td><span class="badge badge-success">Cadastrado</span></td>
+    <td style="display:flex;gap:4px">
+      <button class="btn btn-outline btn-sm" onclick="openModal('ipCadastroPonto')">✏️</button>
+      <button class="btn btn-ghost btn-sm" onclick="openModal('novaOS')">🔧</button>
+    </td>
+  </tr>`).join('');
+}
+
+function renderIPPendentes(){
+  document.getElementById('ipPendentesTable').innerHTML = ipPendentes.map(r=>`<tr>
+    <td>${r.id}</td><td>${r.cidade}</td><td>${r.bairro}</td><td>${r.rua}</td>
+    <td style="color:var(--muted);font-size:12px">${r.ref}</td><td>${r.data}</td>
+    <td><span class="badge ${r.origem==='App Cidadão'?'badge-purple':'badge-gray'}">${r.origem}</span></td>
+    <td><button class="btn btn-teal btn-sm" onclick="openModal('ipCadastroPonto')">Cadastrar</button></td>
+  </tr>`).join('');
+}
+
+function renderMedicao(){
+  document.getElementById('medicaoTable').innerHTML = medicaoData.map(r=>`<tr>
+    <td><strong>${r.item}</strong></td><td>${r.desc}</td><td>${r.un}</td>
+    <td style="font-family:'JetBrains Mono',monospace">${r.prev}</td>
+    <td style="font-family:'JetBrains Mono',monospace;font-weight:700">${r.real}</td>
+    <td>${r.unit}</td>
+    <td style="font-weight:700;color:var(--teal)">${r.total}</td>
+    <td>${statusBadge[r.status]||r.status}</td>
+  </tr>`).join('');
+}
+
+function renderEstoque(){
+  document.getElementById('estoqueTable').innerHTML = estoqueData.map(r=>`<tr>
+    <td><strong style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.cod}</strong></td>
+    <td>${r.desc}</td><td>${r.tipo}</td><td>${r.pot}</td>
+    <td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:${r.qtd<r.min?'var(--danger)':'var(--teal)'}">${r.qtd}</td>
+    <td style="color:var(--muted)">${r.min}</td>
+    <td><span class="badge ${r.sit==='ok'?'badge-success':'badge-danger'}">${r.sit==='ok'?'Normal':'Estoque Baixo'}</span></td>
+    <td><button class="btn btn-outline btn-sm" onclick="openModal('novoMaterial')">+ Entrada</button></td>
+  </tr>`).join('');
+}
+
+function renderGarantia(){
+  document.getElementById('garantiaTable').innerHTML = garantiaData.map(r=>`<tr>
+    <td>${r.equip}</td>
+    <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.serie}</td>
+    <td style="color:var(--teal);font-weight:700">${r.ponto}</td>
+    <td>${r.inst}</td>
+    <td style="font-weight:700">${r.fim}</td>
+    <td>${r.forn}</td>
+    <td><span class="guarantee-badge ${r.status==='ativa'?'guarantee-active':r.status==='expirando'?'guarantee-expiring':'guarantee-expired'}">
+      ${r.status==='ativa'?'✅ Em Garantia':r.status==='expirando'?'⏰ Vencendo':'❌ Expirada'}
+    </span></td>
+    <td><button class="btn btn-outline btn-sm">Ver</button></td>
+  </tr>`).join('');
+}
+
+function renderAplicados(){
+  document.getElementById('aplicadosTable').innerHTML = aplicadosData.map(r=>`<tr>
+    <td><strong style="color:var(--teal)">${r.os}</strong></td><td>${r.mat}</td>
+    <td style="color:var(--teal);font-weight:700">${r.ponto}</td><td>${r.end}</td>
+    <td>${r.tec}</td><td>${r.data}</td>
+    <td><span class="badge badge-success">${r.garAtе}</span></td>
+  </tr>`).join('');
+}
+
+function renderConsumoBairro(){
+  document.getElementById('consumoBairroTable').innerHTML = consumoBairros.map(r=>`<tr>
+    <td><strong>${r.b}</strong></td>
+    <td style="font-family:'JetBrains Mono',monospace">${r.pts.toLocaleString('pt-BR')}</td>
+    <td style="font-family:'JetBrains Mono',monospace">${r.kwh.toLocaleString('pt-BR')}</td>
+    <td style="font-weight:700;color:var(--teal)">${r.custo}</td>
+    <td>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="progress" style="width:60px"><div class="progress-bar" style="width:${r.led}%;background:var(--teal)"></div></div>
+        <span style="font-size:12px;font-weight:700">${r.led}%</span>
+      </div>
+    </td>
+    <td style="font-weight:700;color:var(--warning)">${r.eco}</td>
+  </tr>`).join('');
+}
+
+function renderLogs(){
+  document.getElementById('logsTable').innerHTML = logsData.map(r=>`<tr>
+    <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.dt}</td>
+    <td>${r.user}</td><td><span class="badge badge-gray">${r.perfil}</span></td>
+    <td>${r.acao}</td><td>${r.modulo}</td>
+    <td style="font-size:12px;color:var(--muted)">${r.det}</td>
+  </tr>`).join('');
+}
+
+function renderAppCidadao(){
+  document.getElementById('appCidadaoTable').innerHTML = appCidadaoData.map(r=>`<tr>
+    <td><strong style="color:var(--teal)">${r.os}</strong></td>
+    <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.dt}</td>
+    <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.loc}</td>
+    <td style="color:var(--teal);font-weight:700">${r.ponto}</td>
+    <td><button class="btn btn-ghost btn-sm">${r.foto} Ver Foto</button></td>
+    <td>${statusBadge[r.status]||r.status}</td>
+    <td><button class="btn btn-outline btn-sm" onclick="openModal('novaOS')">Atender</button></td>
+  </tr>`).join('');
+}
+
+function renderBarChart(id,data,colors){
+  const el=document.getElementById(id);if(!el)return;
+  const max=Math.max(...data.map(d=>d.v));
+  el.innerHTML=data.map(d=>`<div class="bar-wrap">
+    <div class="bar" style="height:${(d.v/max)*100}%;background:${colors[d.c]||'#1a6b3a'}"></div>
+    <div class="bar-label">${d.l}</div>
+  </div>`).join('');
+}
+
+const cm={teal:'#1a6b3a',warn:'#f59e0b',danger:'#ef4444',success:'#10b981',info:'#0369a1'};
+const barData=[{l:'Mar',v:28,c:'warn'},{l:'Abr',v:35,c:'danger'},{l:'Mai',v:22,c:'teal'},{l:'Jun',v:40,c:'danger'},{l:'Jul',v:18,c:'teal'},{l:'Ago',v:33,c:'warn'},{l:'Set',v:27,c:'teal'},{l:'Out',v:45,c:'danger'},{l:'Nov',v:31,c:'warn'},{l:'Dez',v:24,c:'teal'},{l:'Jan',v:19,c:'success'},{l:'Fev',v:21,c:'teal'}];
+const bairroData=bairros.slice(0,8).map((b,i)=>({l:b.substring(0,6),v:[45,38,52,29,41,33,27,36][i],c:['teal','warn','danger','success','teal','warn','danger','teal'][i]}));
+const reportData=[{l:'Set/25',v:28,c:'danger'},{l:'Out/25',v:35,c:'danger'},{l:'Nov/25',v:42,c:'danger'},{l:'Dez/25',v:31,c:'warn'},{l:'Jan/26',v:22,c:'warn'},{l:'Fev/26',v:18,c:'teal'}];
+
+// ══════════════════════════════════════════════════════
+// LEAFLET MAPS
+// ══════════════════════════════════════════════════════
+let leafletMapMain = null, leafletMapIP = null;
+
+const macapaCenter = [-0.0349, -51.0694];
+
+const mapColors = {ok:'#10b981',fault:'#ef4444',maint:'#f59e0b',off:'#9ca3af'};
+const lampColors = {'LED':'#10b981','Vapor de Sódio':'#f59e0b','Vapor Metálico':'#ef4444','Mista':'#8b5cf6'};
+
+function makeMarker(lat,lng,color,title,popup){
+  return L.circleMarker([lat,lng],{radius:6,fillColor:color,color:'#fff',weight:1.5,opacity:1,fillOpacity:.85})
+    .bindPopup(popup).bindTooltip(title,{permanent:false,direction:'top'});
+}
+
+function buildMainMap(){
+  if(leafletMapMain) return;
+  leafletMapMain = L.map('leafletMap').setView(macapaCenter,13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(leafletMapMain);
+
+  // Generate ~200 points around Macapá
+  for(let i=0;i<200;i++){
+    const lat = macapaCenter[0] + (Math.random()-.5)*.08;
+    const lng = macapaCenter[1] + (Math.random()-.5)*.08;
+    const statArr = ['ok','ok','ok','ok','ok','fault','maint','off'];
+    const st = statArr[Math.floor(Math.random()*statArr.length)];
+    const lbl = ['Operando','Com Falha','Em Manutenção','Desligado'][['ok','fault','maint','off'].indexOf(st)];
+    const pop = `<b>ILP-MAC-${String(i+100).padStart(5,'0')}</b><br>Status: <b style="color:${mapColors[st]}">${lbl}</b><br>Bairro: ${bairros[i%bairros.length]}<br>Lâmpada: LED 100W<br><button onclick="window.openModal&&openModal('novaOS')" style="margin-top:6px;padding:4px 10px;background:var(--teal);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px">Abrir OS</button>`;
+    makeMarker(lat,lng,mapColors[st],`ILP-MAC-${String(i+100).padStart(5,'0')}`,pop).addTo(leafletMapMain);
+  }
+
+  // Add real points from data
+  pontosILP.forEach(p=>{
+    const pop=`<b>${p.et}</b><br>${p.end}<br>${p.bairro}<br>💡 ${p.lamp} ${p.pot}`;
+    makeMarker(parseFloat(p.lat),parseFloat(p.lng),lampColors[p.lamp]||'#1a6b3a',p.et,pop).addTo(leafletMapMain);
+  });
+
+  // Legend control
+  const legend=L.control({position:'topright'});
+  legend.onAdd=function(){
+    const d=L.DomUtil.create('div','map-overlay-panel');
+    d.innerHTML=`<div class="map-legend-title">Legenda</div>
+      <div class="legend-row"><span class="legend-circle" style="background:#10b981"></span>Operando</div>
+      <div class="legend-row"><span class="legend-circle" style="background:#ef4444"></span>Com Falha</div>
+      <div class="legend-row"><span class="legend-circle" style="background:#f59e0b"></span>Manutenção</div>
+      <div class="legend-row"><span class="legend-circle" style="background:#9ca3af"></span>Desligado</div>`;
+    return d;
+  };
+  legend.addTo(leafletMapMain);
+}
+
+function buildIPMap(){
+  if(leafletMapIP) return;
+  leafletMapIP = L.map('leafletMapIP').setView(macapaCenter,13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(leafletMapIP);
+
+  for(let i=0;i<150;i++){
+    const lat=macapaCenter[0]+(Math.random()-.5)*.07;
+    const lng=macapaCenter[1]+(Math.random()-.5)*.07;
+    const lamps=['LED','Vapor de Sódio','Vapor Metálico','Mista'];
+    const lamp=lamps[i%lamps.length];
+    const pop=`<b>ILP-MAC-${String(i+1).padStart(5,'0')}</b><br>💡 ${lamp}<br>Bairro: ${bairros[i%bairros.length]}`;
+    makeMarker(lat,lng,lampColors[lamp],`ILP-MAC-${String(i+1).padStart(5,'0')}`,pop).addTo(leafletMapIP);
+  }
+}
+
+function filterMapStatus(type,btn){
+  // visual feedback only
+  document.querySelectorAll('.map-filters-bar .btn').forEach(b=>{b.className=b.className.replace('btn-teal','btn-ghost');});
+  btn.className=btn.className.replace('btn-ghost','btn-teal');
+}
+
+// ══════════════════════════════════════════════════════
+// CONSUMPTION SIMULATOR
+// ══════════════════════════════════════════════════════
+function calcConsumo(){
+  const tarifaTxt=document.getElementById('simTarifa').value.replace(',','.');
+  const tarifa=parseFloat(tarifaTxt)||0.89;
+  const horas=parseInt(document.getElementById('simHoras').value)||11;
+  const dias=30;
+
+  // LED avg 90W, VS avg 175W, VM avg 250W
+  const ledKwh=38420*(90/1000)*horas*dias;
+  const vsKwh=18214*(175/1000)*horas*dias;
+  const vmKwh=5083*(250/1000)*horas*dias;
+  const totalKwh=ledKwh+vsKwh+vmKwh;
+  const totalR=totalKwh*tarifa;
+  const econR=(vsKwh+vmKwh)*tarifa*(1-90/((175*18214+250*5083)/(18214+5083)));
+
+  document.getElementById('simTotal').textContent=R(totalR)+'/mês';
+  document.getElementById('simKwh').textContent=Math.round(totalKwh).toLocaleString('pt-BR')+' kWh';
+  document.getElementById('simPontos').textContent='63.712';
+  document.getElementById('simEcon').textContent=R(ledKwh*tarifa*0.45);
+  document.getElementById('compLED').textContent=R(ledKwh*tarifa);
+  document.getElementById('compVS').textContent=R(vsKwh*tarifa);
+  document.getElementById('compVM').textContent=R(vmKwh*tarifa);
+}
+
+// ══════════════════════════════════════════════════════
+// CONSULTAS
+// ══════════════════════════════════════════════════════
+function renderConsulta(){
+  const mod=document.getElementById('consultaModulo').value;
+  let head='',rows='',count=0;
+  if(mod==='pontos'){
+    head='<th>Etiqueta</th><th>Endereço</th><th>Bairro</th><th>Lâmpada</th><th>Potência</th><th>Status</th>';
+    rows=pontosILP.map(r=>`<tr><td><strong style="color:var(--teal)">${r.et}</strong></td><td>${r.end}</td><td>${r.bairro}</td><td>${r.lamp}</td><td>${r.pot}</td><td><span class="badge badge-success">Cadastrado</span></td></tr>`).join('');
+    count=pontosILP.length;
+  } else if(mod==='os'){
+    head='<th>OS Nº</th><th>Tipo</th><th>Endereço</th><th>Técnico</th><th>Data</th><th>Status</th>';
+    rows=osData.map(r=>`<tr><td><strong style="color:var(--teal)">${r.id}</strong></td><td>${r.tipo}</td><td>${r.end}</td><td>${r.tec}</td><td>${r.data}</td><td>${statusBadge[r.status]}</td></tr>`).join('');
+    count=osData.length;
+  } else if(mod==='materiais'){
+    head='<th>Código</th><th>Material</th><th>Tipo</th><th>Potência</th><th>Qtd</th><th>Situação</th>';
+    rows=estoqueData.map(r=>`<tr><td><strong style="font-family:monospace;font-size:11px">${r.cod}</strong></td><td>${r.desc}</td><td>${r.tipo}</td><td>${r.pot}</td><td style="font-weight:700">${r.qtd}</td><td><span class="badge ${r.sit==='ok'?'badge-success':'badge-danger'}">${r.sit==='ok'?'Normal':'Baixo'}</span></td></tr>`).join('');
+    count=estoqueData.length;
+  } else {
+    head='<th>OS</th><th>Ponto ILP</th><th>Material Aplicado</th><th>Técnico</th><th>Data</th><th>Garantia até</th>';
+    rows=aplicadosData.map(r=>`<tr><td><strong style="color:var(--teal)">${r.os}</strong></td><td>${r.ponto}</td><td>${r.mat}</td><td>${r.tec}</td><td>${r.data}</td><td><span class="badge badge-success">${r.garAtе}</span></td></tr>`).join('');
+    count=aplicadosData.length;
+  }
+  document.getElementById('consultaHead').innerHTML=head;
+  document.getElementById('consultaBody').innerHTML=rows;
+  document.getElementById('consultaCount').textContent=count+' registros';
+  document.getElementById('consultaResultTitle').textContent='Resultado — '+{pontos:'Pontos ILP',os:'Ordens de Serviço',materiais:'Materiais',intervencoes:'Intervenções'}[mod];
+}
+
+function gerarRelatorio(){
+  const t=document.getElementById('relTipo').value;
+  alert('📄 Gerando relatório:\n\n"'+t+'"\n\nEm um sistema real, este relatório seria gerado em segundo plano e disponibilizado para download em PDF/Excel.');
+}
+
+// ══════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════
+const pageTitles={
+  dashboard:'Dashboard Geral',mapa:'Mapa de Pontos',ordens:'Ordens de Serviço',
+  medicao:'Medição do Empreiteiro',materiais:'Materiais / Controle de Garantia',
+  ipcadastro:'IPCadastro — Ativos ILP',consultas:'Consultas Avançadas',
+  consumo:'Simulação de Consumo',relatorios:'Relatórios Gerenciais',admin:'Administração'
+};
+
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const pg=document.getElementById('page-'+id);
+  if(pg) pg.classList.add('active');
+  if(el) el.classList.add('active');
+  document.getElementById('pageTitle').textContent=pageTitles[id]||id;
+  if(id==='mapa') setTimeout(buildMainMap,100);
+  if(id==='ipcadastro'){renderIPTable();renderIPPendentes();}
+  if(id==='medicao') renderMedicao();
+  if(id==='materiais'){renderEstoque();renderGarantia();renderAplicados();}
+  if(id==='consumo'){calcConsumo();renderConsumoBairro();}
+}
+
+// ══════════════════════════════════════════════════════
+// MODALS
+// ══════════════════════════════════════════════════════
+function openModal(id){const el=document.getElementById('modal-'+id);if(el)el.classList.add('show');}
+function closeModal(id){const el=document.getElementById('modal-'+id);if(el)el.classList.remove('show');}
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');}));
+
+// ══════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════
+function switchIPTab(btn,tabId){
+  document.querySelectorAll('#page-ipcadastro .tabs .tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  ['ip-lista','ip-mapa','ip-pendentes','ip-config'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.style.display=(id===tabId)?'block':'none';
+  });
+  if(tabId==='ip-mapa') setTimeout(buildIPMap,100);
+}
+
+function switchAdminTab(btn,tabId){
+  document.querySelectorAll('#page-admin .tabs .tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  ['adm-usuarios','adm-config','adm-import','adm-app','adm-logs'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.style.display=(id===tabId)?'block':'none';
+  });
+  if(tabId==='adm-app') renderAppCidadao();
+  if(tabId==='adm-logs') renderLogs();
+}
+
+function switchMaterialTab(btn,tabId){
+  document.querySelectorAll('#page-materiais .tabs .tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  ['mat-estoque','mat-garantia','mat-aplicados'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.style.display=(id===tabId)?'block':'none';
+  });
+}
+
+function filterIPTable(){
+  const s=document.getElementById('ipSearch').value.toLowerCase();
+  document.querySelectorAll('#ipTable tr').forEach(r=>{
+    r.style.display=r.textContent.toLowerCase().includes(s)||!s?'':'none';
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// NOTIFICATIONS
+// ══════════════════════════════════════════════════════
+function toggleNotif(){
+  const p=document.getElementById('notifPanel');
+  p.classList.toggle('show');
+  document.getElementById('notifBadge').style.display='none';
+}
+document.addEventListener('click',e=>{
+  const p=document.getElementById('notifPa

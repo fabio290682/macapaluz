@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: macapaluz
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: python -m py_compile api/server.py scripts/build_robust_db.py
+    startCommand: python api/server.py
+    healthCheckPath: /health
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 10000
+      - key: MACAPALUZ_DB_PATH
+        value: /opt/render/project/src/macapaluz_robusto.db
+      - key: MACAPALUZ_FRONTEND_FILE
+        value: macapaluz-v3.html
+      - key: MACAPALUZ_API_BASE
+        value: ""
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false

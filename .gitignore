@@ -11,6 +11,7 @@ __pycache__/
 *.db
 *.db-shm
 *.db-wal
+data/raw/kml/*.kml
 
 node_modules/
 npm-debug.log*
