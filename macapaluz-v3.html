@@ -1490,7 +1490,11 @@ async function handleAdminImport(){
     const btn = document.getElementById('admImportBtn');
     const file = fileInput?.files?.[0];
     const type = (typeInput?.value || 'pontos').trim();
-    const isDemoMode = (!window.MACAPALUZ_API_BASE || !String(window.MACAPALUZ_API_BASE).trim()) && window.location.hostname.includes('github.io');
+    const host = String(window.location.hostname || '').toLowerCase();
+    const onGithubPages = host.endsWith('github.io');
+    const apiBaseCfg = String(window.MACAPALUZ_API_BASE || '').trim();
+    const hasPublicApi = !!apiBaseCfg && !apiBaseCfg.includes('github.io');
+    const isDemoMode = onGithubPages && !hasPublicApi;
     if(!file){
       return setImportResult(false, 'Selecione um arquivo para importar.');
     }
@@ -1510,8 +1514,16 @@ async function handleAdminImport(){
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({filename:file.name, import_type:type, content_base64})
     });
-    const data = await res.json();
+    const raw = await res.text();
+    let data = {};
+    try{ data = raw ? JSON.parse(raw) : {}; }catch(_e){ data = {message: raw}; }
     if(!res.ok){
+      if(onGithubPages && !hasPublicApi){
+        throw new Error('Importacao indisponivel no GitHub Pages sem backend publico.');
+      }
+      if(String(raw || '').toLowerCase().includes('<html')){
+        throw new Error('Resposta invalida do servidor (HTML). Verifique MACAPALUZ_API_BASE para apontar ao backend.');
+      }
       throw new Error(data.message || data.error || `HTTP ${res.status}`);
     }
 
