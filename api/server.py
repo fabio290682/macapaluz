@@ -7,13 +7,16 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from importer import import_points_to_db, parse_uploaded_file
+from scripts.ensure_runtime_db import ensure_db
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DB_PATH = REPO_ROOT / "macapaluz_robusto.db"
-DB_PATH = Path(os.getenv("MACAPALUZ_DB_PATH", str(DEFAULT_DB_PATH)))
-if not DB_PATH.exists():
-    DB_PATH = REPO_ROOT / "macapaluz.db"
+DB_ENV = os.getenv("MACAPALUZ_DB_PATH")
+if DB_ENV:
+    DB_PATH = Path(DB_ENV)
+else:
+    DB_PATH = DEFAULT_DB_PATH if DEFAULT_DB_PATH.exists() else (REPO_ROOT / "macapaluz.db")
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8001"))
 FRONTEND_FILE = os.getenv("MACAPALUZ_FRONTEND_FILE", "macapaluz-v3.html")
@@ -689,8 +692,7 @@ class ApiHandler(BaseHTTPRequestHandler):
 
 
 def run():
-    if not DB_PATH.exists():
-        raise FileNotFoundError(f"Banco nao encontrado: {DB_PATH}")
+    ensure_db()
     server = ThreadingHTTPServer((HOST, PORT), ApiHandler)
     print(f"MacapaLuz API em http://{HOST}:{PORT}")
     print(f"Banco: {DB_PATH}")
