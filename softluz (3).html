@@ -24,10 +24,11 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);displ
 /* ── SIDEBAR ── */
 .sidebar{width:var(--sidebar-w);background:var(--sidebar);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:2px;z-index:100;transition:width .3s;overflow:hidden;flex-shrink:0}
 .sidebar:hover{width:220px}
-.sidebar-logo{width:100%;padding:8px 16px 12px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:8px;white-space:nowrap;overflow:hidden}
+.sidebar-logo{width:100%;padding:8px 12px 12px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:8px;overflow:hidden}
 .logo-pre{font-size:9px;color:rgba(255,255,255,.45);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;display:block}
 .logo-name{font-size:18px;font-weight:900;color:#4ade80;display:block;line-height:1.2}
 .logo-name span{color:#fff}
+.logo-img{display:block;width:100%;height:auto;max-height:92px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.35))}
 .nav-group-label{width:100%;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.25);padding:10px 20px 4px;white-space:nowrap;overflow:hidden}
 .nav-item{width:100%;display:flex;align-items:center;gap:12px;padding:11px 20px;cursor:pointer;color:#8b92a5;border-left:3px solid transparent;transition:all .2s;white-space:nowrap;overflow:hidden;user-select:none}
 .nav-item:hover,.nav-item.active{background:var(--sidebar-hover);color:#4ade80;border-left-color:#4ade80}
@@ -256,8 +257,9 @@ tr:hover td{background:#fafbff}
 ══════════════════════════════════════════════════════════ -->
 <nav class="sidebar" id="sidebar">
   <div class="sidebar-logo">
-    <span class="logo-pre">Prefeitura de</span>
-    <span class="logo-name">Macapá <span>Luz</span></span>
+    <img class="logo-img" src="./assets/cipemac-logo.svg" alt="CIPEMAC">
+    <span class="logo-pre">Companhia de Iluminação Pública, Energia Sustentável e Saneamento</span>
+    <span class="logo-name">Município de Macapá <span>CIPEMAC</span></span>
   </div>
 
   <span class="nav-group-label">PRINCIPAL</span>

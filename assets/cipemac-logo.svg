@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" role="img" aria-label="CIPEMAC">
+  <defs>
+    <linearGradient id="gBulb" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#facc15"/>
+      <stop offset="0.45" stop-color="#22c55e"/>
+      <stop offset="1" stop-color="#ef4444"/>
+    </linearGradient>
+  </defs>
+  <g>
+    <path d="M92 18c38 0 69 30 69 68 0 24-12 40-22 54-8 10-14 20-15 32H61c-1-12-7-22-15-32C36 126 24 110 24 86c0-38 30-68 68-68z" fill="url(#gBulb)" stroke="#e5e7eb" stroke-width="8"/>
+    <rect x="57" y="172" width="72" height="16" rx="8" fill="#166534"/>
+    <rect x="57" y="194" width="72" height="16" rx="8" fill="#166534"/>
+    <rect x="57" y="216" width="72" height="16" rx="8" fill="#166534"/>
+  </g>
+  <text x="170" y="158" font-family="Arial, Helvetica, sans-serif" font-size="138" font-weight="900" fill="#15803d" stroke="#f3f4f6" stroke-width="8">cipemac</text>
+  <text x="410" y="202" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="700" fill="#ffffff">Ilumine, cuide e preserve o futuro.</text>
+  <rect x="170" y="220" width="710" height="14" rx="7" fill="#f8fafc"/>
+  <rect x="172" y="222" width="235" height="10" rx="5" fill="#ef4444"/>
+  <rect x="407" y="222" width="235" height="10" rx="5" fill="#facc15"/>
+  <rect x="642" y="222" width="236" height="10" rx="5" fill="#22c55e"/>
+</svg>
