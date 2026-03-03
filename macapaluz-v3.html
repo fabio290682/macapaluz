@@ -1438,6 +1438,30 @@ async function fetchApi(path){
   return res.json();
 }
 
+let __snapshotCache = null;
+
+async function loadSnapshot(){
+  if(__snapshotCache) return __snapshotCache;
+  const res = await fetch('./data/public_snapshot.json');
+  if(!res.ok) throw new Error('snapshot_indisponivel');
+  __snapshotCache = await res.json();
+  return __snapshotCache;
+}
+
+async function fetchApiOrSnapshot(path){
+  try{
+    return await fetchApi(path);
+  }catch(_apiErr){
+    const snap = await loadSnapshot();
+    if(path.startsWith('/dashboard/summary')) return snap.dashboard_summary || {};
+    if(path.startsWith('/ordens-servico')) return snap.ordens_servico || {total:0,items:[]};
+    if(path.startsWith('/pontos-ilp/map')) return snap.pontos_ilp_map || {total:0,items:[]};
+    if(path.startsWith('/pontos-ilp')) return snap.pontos_ilp || {total:0,items:[]};
+    if(path.startsWith('/qualidade/summary')) return snap.qualidade_summary || {items:[]};
+    throw _apiErr;
+  }
+}
+
 async function checkApiHealth(){
   try{
     await fetchApi('/health');
@@ -1448,7 +1472,12 @@ async function checkApiHealth(){
     if(fileMode){
       showRuntimeAlert('Sistema offline: abra em http://127.0.0.1:8001 (nao use file://).');
     } else {
-      showRuntimeAlert('Sistema offline: API indisponivel em ' + API_BASE + '.');
+      try{
+        await loadSnapshot();
+        showRuntimeAlert('Modo demonstracao: usando snapshot local (sem backend online).');
+      }catch(_e2){
+        showRuntimeAlert('Sistema offline: API indisponivel em ' + API_BASE + '.');
+      }
     }
     return false;
   }
@@ -1510,7 +1539,7 @@ function fmtDateApi(iso){
 
 async function loadDashboardApi(){
   try{
-    const s = await fetchApi('/dashboard/summary');
+    const s = await fetchApiOrSnapshot('/dashboard/summary');
     const vals = document.querySelectorAll('#page-dashboard .stats-grid .stat-value');
     const subs = document.querySelectorAll('#page-dashboard .stats-grid .stat-sub');
     if(vals.length >= 4){
@@ -1530,7 +1559,7 @@ async function loadDashboardApi(){
 
 async function loadOrdensApi(){
   try{
-    const d = await fetchApi('/ordens-servico?limit=200');
+    const d = await fetchApiOrSnapshot('/ordens-servico?limit=200');
     osData.length = 0;
     (d.items || []).forEach((r, i) => osData.push({
       id: r.numero_os || `OS-${i+1}`,
@@ -1556,7 +1585,7 @@ async function loadPontosApi(){
     if(bairro) q.set('bairro', bairro);
     if(status) q.set('status', status);
     if(search) q.set('search', search);
-    const d = await fetchApi(`/pontos-ilp?${q.toString()}`);
+    const d = await fetchApiOrSnapshot(`/pontos-ilp?${q.toString()}`);
     pontosILP.length = 0;
     (d.items || []).forEach((r, i) => pontosILP.push({
       et: r.etiqueta || `ILP-${i+1}`,
@@ -1577,7 +1606,7 @@ async function loadPontosApi(){
 
 async function loadMapApi(){
   try{
-    const d = await fetchApi('/pontos-ilp/map?limit=12000');
+    const d = await fetchApiOrSnapshot('/pontos-ilp/map?limit=12000');
     __apiMapPoints = d.items || [];
   }catch(e){ console.warn('map api offline', e); __apiMapPoints = []; }
 }
