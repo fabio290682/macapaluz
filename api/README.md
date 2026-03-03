@@ -1,4 +1,4 @@
-# MacapaLuz API
+# CIPEMAC API
 
 API HTTP local/producao baseada em SQLite.
 
@@ -59,10 +59,30 @@ python api/server.py
 - `PUT /ordens-servico/{id}`
 - `DELETE /ordens-servico/{id}`
 - `POST /import/file` (upload em base64 para KMZ/KML/CSV/XLSX de pontos)
+- `POST /app-cidadao/solicitacoes` (abre O.S. pelo local do cidadão)
 
 ## Exemplo rapido
 
 ```powershell
 Invoke-RestMethod "http://127.0.0.1:8001/health"
 Invoke-RestMethod "http://127.0.0.1:8001/pontos-ilp?limit=5"
+```
+
+## Exemplo App Cidadao
+
+```powershell
+$body = @{
+  nome = "Maria"
+  telefone = "96999999999"
+  descricao = "Poste apagado em frente a residencia"
+  endereco = "Rua Exemplo, 10"
+  bairro = "Centro"
+  lat = 0.03511
+  lng = -51.06642
+} | ConvertTo-Json
+
+Invoke-RestMethod "http://127.0.0.1:8001/app-cidadao/solicitacoes" `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body $body
 ```

@@ -3,14 +3,19 @@ import mimetypes
 import os
 import sqlite3
 import base64
+import sys
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from importer import import_points_to_db, parse_uploaded_file
-from scripts.ensure_runtime_db import ensure_db
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+from scripts.ensure_runtime_db import ensure_db
+
 DEFAULT_DB_PATH = REPO_ROOT / "macapaluz_robusto.db"
 DB_ENV = os.getenv("MACAPALUZ_DB_PATH")
 if DB_ENV:
@@ -296,7 +301,7 @@ class ApiHandler(BaseHTTPRequestHandler):
                 return self._send_json(
                     {
                         "ok": True,
-                        "service": "macapaluz-api",
+                        "service": "cipemac-api",
                         "db_path": str(DB_PATH),
                         "frontend_file": FRONTEND_FILE,
                     }
@@ -329,6 +334,8 @@ class ApiHandler(BaseHTTPRequestHandler):
                 return self._create_ponto_ilp(payload)
             if path == "/ordens-servico":
                 return self._create_ordem_servico(payload)
+            if path == "/app-cidadao/solicitacoes":
+                return self._create_os_app_cidadao(payload)
             if path == "/import/file":
                 return self._import_file(payload)
             return self._send_json({"error": "not_found"}, status=404)
@@ -596,6 +603,82 @@ class ApiHandler(BaseHTTPRequestHandler):
             item = self._fetch_os_by_id(conn, os_id)
         return self._send_json(item, status=201)
 
+    def _find_or_create_local_point(self, conn, lat, lng, endereco, bairro):
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT id, ((lat - ?) * (lat - ?) + (lng - ?) * (lng - ?)) AS dist2
+            FROM pontos_ilp
+            WHERE lat IS NOT NULL AND lng IS NOT NULL
+            ORDER BY dist2 ASC
+            LIMIT 1
+            """,
+            (lat, lat, lng, lng),
+        )
+        row = cur.fetchone()
+        # ~70m de raio aproximado (graus): 0.000625 em dist^2
+        if row and row["dist2"] is not None and row["dist2"] <= 0.000000625:
+            return row["id"], False
+
+        tag = f"APP-CID-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:20]}"
+        cur.execute(
+            """
+            INSERT INTO pontos_ilp (etiqueta, endereco, bairro, cidade, lat, lng, status, origem_dado, confianca_dado)
+            VALUES (?, ?, ?, 'Macapa', ?, ?, 'cadastrado', 'app_cidadao', 0.9)
+            """,
+            (tag, endereco or "Local informado pelo app cidadao", bairro, lat, lng),
+        )
+        return cur.lastrowid, True
+
+    def _next_app_os_number(self):
+        return f"OS-APP-{datetime.utcnow().strftime('%Y%m%d-%H%M%S-%f')[:22]}"
+
+    def _create_os_app_cidadao(self, payload):
+        nome = str(payload.get("nome") or "").strip()
+        descricao = str(payload.get("descricao") or "").strip()
+        telefone = str(payload.get("telefone") or "").strip()
+        endereco = str(payload.get("endereco") or "").strip()
+        bairro = str(payload.get("bairro") or "").strip()
+        lat = to_float(payload.get("lat"))
+        lng = to_float(payload.get("lng"))
+
+        if not nome:
+            raise ValueError("campo_obrigatorio: nome")
+        if not descricao:
+            raise ValueError("campo_obrigatorio: descricao")
+        if lat is None or lng is None:
+            raise ValueError("campo_obrigatorio: lat_lng")
+        if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+            raise ValueError("coordenada_invalida")
+
+        with get_db() as conn:
+            ponto_id, created_point = self._find_or_create_local_point(conn, lat, lng, endereco, bairro)
+            numero_os = self._next_app_os_number()
+            solicitante = f"APP CIDADAO - {nome}" + (f" ({telefone})" if telefone else "")
+            desc_os = f"{descricao}\n\nLocal: {lat:.6f}, {lng:.6f}" + (f"\nEndereco: {endereco}" if endereco else "")
+
+            cur = conn.cursor()
+            cur.execute(
+                """
+                INSERT INTO ordens_servico (numero_os, ponto_ilp_id, tipo, descricao, solicitante, status)
+                VALUES (?, ?, 'app_cidadao', ?, ?, 'aberta')
+                """,
+                (numero_os, ponto_id, desc_os, solicitante),
+            )
+            os_id = cur.lastrowid
+            conn.commit()
+            item = self._fetch_os_by_id(conn, os_id)
+
+        return self._send_json(
+            {
+                "ok": True,
+                "mensagem": "Solicitacao recebida e O.S. aberta com sucesso.",
+                "os": item,
+                "ponto_criado": created_point,
+            },
+            status=201,
+        )
+
     def _update_ordem_servico(self, os_id, payload):
         if os_id is None:
             return self._send_json({"error": "bad_request", "message": "id_invalido"}, status=400)
@@ -694,7 +777,7 @@ class ApiHandler(BaseHTTPRequestHandler):
 def run():
     ensure_db()
     server = ThreadingHTTPServer((HOST, PORT), ApiHandler)
-    print(f"MacapaLuz API em http://{HOST}:{PORT}")
+    print(f"CIPEMAC API em http://{HOST}:{PORT}")
     print(f"Banco: {DB_PATH}")
     print(f"Frontend: {REPO_ROOT / FRONTEND_FILE}")
     server.serve_forever()
