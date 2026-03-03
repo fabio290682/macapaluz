@@ -1490,8 +1490,15 @@ async function handleAdminImport(){
     const btn = document.getElementById('admImportBtn');
     const file = fileInput?.files?.[0];
     const type = (typeInput?.value || 'pontos').trim();
+    const isDemoMode = (!window.MACAPALUZ_API_BASE || !String(window.MACAPALUZ_API_BASE).trim()) && window.location.hostname.includes('github.io');
     if(!file){
       return setImportResult(false, 'Selecione um arquivo para importar.');
+    }
+    if(isDemoMode){
+      return setImportResult(false, 'Importacao indisponivel no GitHub Pages em modo demonstracao. Ative um backend publico e configure MACAPALUZ_API_BASE.');
+    }
+    if(file.size > 8 * 1024 * 1024){
+      return setImportResult(false, 'Arquivo muito grande para envio via navegador (maximo 8 MB). Use backend local/servidor para importar esse arquivo.');
     }
     btn.disabled = true;
     btn.textContent = '⏳ Processando...';
