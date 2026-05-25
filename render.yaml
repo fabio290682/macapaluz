@@ -4,10 +4,12 @@ services:
     runtime: python
     plan: free
     region: oregon
-    buildCommand: pip install -r requirements.txt && python -m py_compile api/server.py api/importer.py scripts/ensure_runtime_db.py
+    buildCommand: pip install -r requirements.txt && python -m py_compile api/server.py api/importer.py scripts/ensure_runtime_db.py && python scripts/ensure_runtime_db.py
     startCommand: python api/server.py
     healthCheckPath: /health
     envVars:
+      - key: MACAPALUZ_ENV
+        value: production
       - key: HOST
         value: 0.0.0.0
       - key: PORT
@@ -18,5 +20,9 @@ services:
         value: macapaluz-v3.html
       - key: MACAPALUZ_API_BASE
         value: ""
+      - key: MACAPALUZ_AUTH_SECRET
+        sync: false
+      - key: MACAPALUZ_CORS_ORIGINS
+        sync: false
       - key: GOOGLE_MAPS_API_KEY
         sync: false
